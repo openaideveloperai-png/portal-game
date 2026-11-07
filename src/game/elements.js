@@ -1212,8 +1212,15 @@ export class House extends Weighted {
     const hw = w * 0.9, hd = d * 0.45, hh = 2.1;
     const walls = new THREE.Mesh(boxGeom([-hw / 2, 0, -d / 2 + 0.05], [hw / 2, hh, -d / 2 + 0.05 + hd], { bevel: 0.02, grime: [0, hh] }), mats.get(['render_white', 'render_ochre', 'render_rose'][style % 3]));
     walls.castShadow = walls.receiveShadow = true; g.add(walls);
-    const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, hd * 0.85, hw * 1.08, 3, 1), mats.get('rooftiles'));
-    roof.rotation.z = Math.PI / 2; roof.position.set(0, hh + hd * 0.32, -d / 2 + 0.05 + hd / 2); roof.scale.set(1, 1, 1.25); roof.castShadow = true; g.add(roof);
+    // gabled roof: a triangular prism along the house's width, eaves overhanging a little
+    const tri = new THREE.Shape();
+    const ov = 0.18, ridge = hd * 0.55;
+    tri.moveTo(-hd / 2 - ov, 0); tri.lineTo(hd / 2 + ov, 0); tri.lineTo(0, ridge); tri.closePath();
+    const rg = new THREE.ExtrudeGeometry(tri, { depth: hw + 0.3, bevelEnabled: false });
+    rg.translate(0, 0, -(hw + 0.3) / 2);
+    const ruv = rg.attributes.uv; for (let i = 0; i < ruv.count; i++) ruv.setXY(i, ruv.getX(i) * 0.5, ruv.getY(i) * 0.5);
+    const roof = new THREE.Mesh(rg, mats.get('rooftiles'));
+    roof.rotation.y = Math.PI / 2; roof.position.set(0, hh, -d / 2 + 0.05 + hd / 2); roof.castShadow = true; g.add(roof);
     const door = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.6), mats.plain('#141210', { rough: 1 }));
     door.position.set(0, 0.8, -d / 2 + 0.05 + hd + 0.005); g.add(door);
     const win = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), mats.plain('#1a1d1d', { rough: 0.2 }));
@@ -1222,6 +1229,12 @@ export class House extends Weighted {
     this.chain = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1, 6), mats.get('rust'));
     L.root.add(this.chain);
     for (const f of [0, 1]) { const dr = new Drum(0.26); dr.mesh.position.set(f ? -w / 2 - 0.004 : w / 2 + 0.004, -0.3, d * 0.25); dr.mesh.rotation.y = f ? -Math.PI / 2 : Math.PI / 2; g.add(dr.mesh); dr.set(weight); this.drums.push(dr); }
+    if (arguments[1].lantern) {
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), mats.emissive('#ffc77a', 4));
+      lamp.position.set(hw / 2 - 0.1, 1.9, -d / 2 + 0.05 + hd + 0.12); g.add(lamp);
+      const pl = new THREE.PointLight('#ffb766', 10, 9, 2); pl.position.copy(lamp.position).add(new THREE.Vector3(0, -0.1, 0.2)); g.add(pl);
+      L.lights.push(pl);
+    }
     g.rotation.y = rotY;
     this.object = g;
     L.root.add(g);

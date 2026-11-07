@@ -47,23 +47,51 @@ export function buildExterior(L, { rainBox = null, water = -14, town = true, mou
   root.add(sky);
   out.sky = sky; out.skyMat = skyMat;
   const r = rng(seed);
-  // mountains: a ring with a noisy ridge line, very dark, softened by fog
+  // mountains: two rings of ridge line drawn at sky depth (so the far plane never clips
+  // them), lighter at the foot where the haze sits, darker at the crest
   if (mountains) {
-    const seg = 220, R = 900;
-    const pos = [], idx = [];
-    for (let i = 0; i <= seg; i++) {
-      const a = i / seg * Math.PI * 2;
-      let hgt = 0;
-      for (let k = 1; k <= 6; k++) hgt += Math.sin(a * k * 3 + r() * 6) * (180 / k) * (0.6 + r() * 0.5);
-      hgt = 40 + Math.abs(hgt) * 0.45 + (Math.cos(a) * 0.5 + 0.5) * 60;
-      pos.push(Math.cos(a) * R, -60, Math.sin(a) * R, Math.cos(a) * R, hgt, Math.sin(a) * R);
-      if (i < seg) { const b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
+    const ridge = (R, amp, base, s, renderOrder, foot, crest) => {
+      const seg = 900;
+      const pos = [], col = [], idx = [];
+      const cf = new THREE.Color(foot), cc = new THREE.Color(crest);
+      // integer frequencies keep the ring seamless; the |sin| terms give sharp crests
+      const broad = [[2, 1.0], [3, 0.7], [5, 0.45], [7, 0.3]];
+      const crag = [[11, 0.5], [17, 0.34], [26, 0.22], [41, 0.13], [63, 0.07]];
+      for (let i = 0; i <= seg; i++) {
+        const a = i / seg * Math.PI * 2;
+        let b = 0, c = 0;
+        for (const [f, w] of broad) b += Math.sin(a * f + f * 1.37 + s) * w;
+        for (const [f, w] of crag) c += Math.pow(1 - Math.abs(Math.sin(a * f + f * 0.61 + s * 1.9)), 2) * w;
+        const env = Math.max(0, b / 2.45 * 0.5 + 0.55);
+        const hgt = base + amp * (env * 0.9 + c * env * 0.75 + (Math.cos(a - 0.6) * 0.5 + 0.5) * 0.25);
+        const x = Math.cos(a) * R, z = Math.sin(a) * R;
+        pos.push(x, -60, z, x, 0, z, x, hgt, z);
+        const t = Math.min(1, hgt / (base + amp * 1.6));
+        const top = cf.clone().lerp(cc, 0.55 + 0.45 * t);
+        col.push(cf.r, cf.g, cf.b, cf.r, cf.g, cf.b, top.r, top.g, top.b);
+        if (i < seg) { const b = i * 3; idx.push(b, b + 1, b + 3, b + 1, b + 4, b + 3, b + 1, b + 2, b + 4, b + 2, b + 5, b + 4); }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      g.setIndex(idx);
+      const mat = new THREE.ShaderMaterial({
+        side: THREE.DoubleSide, depthWrite: false, fog: false, vertexColors: true,
+        vertexShader: 'varying vec3 vC; void main(){ vC = color; vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0); p.z = p.w * 0.999999; gl_Position = p; }',
+        fragmentShader: 'varying vec3 vC; void main(){ gl_FragColor = vec4(vC, 1.0); }',
+      });
+      const m = new THREE.Mesh(g, mat);
+      m.frustumCulled = false; m.renderOrder = renderOrder;
+      root.add(m);
+      return m;
+    };
+    if (dawn) {
+      ridge(900, 110, 25, seed, -9, '#8d8f90', '#59626c');
+      ridge(620, 50, 6, seed + 4.2, -8, '#7d7f7f', '#3f4750');
+    } else {
+      ridge(900, 95, 20, seed, -9, '#16191c', '#101316');
+      ridge(620, 42, 4, seed + 4.2, -8, '#0a0b0c', '#070809');
     }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: dawn ? '#3a4048' : '#0a0c0e', side: THREE.DoubleSide, fog: false }));
-    m.frustumCulled = false;
-    root.add(m);
   }
   // the reservoir
   if (water !== null) {

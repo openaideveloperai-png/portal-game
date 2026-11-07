@@ -222,7 +222,7 @@ const c24 = {
   id: 'c24', ledger: 'III', chamber: 7, title: 'Spillway',
   tare: { capacity: 4, debt: true },
   build(L) {
-    L.spawn = { pos: [-14, 0, 0], yaw: -PI / 2 };
+    L.spawn = { pos: [-17, 0, -3.6], yaw: -PI / 2 - 0.38 };
     L.killY = -14; L.killYTop = 30;
     L.wet = 1;
     L.fog('#0b0d0f', 0.02);
@@ -236,7 +236,11 @@ const c24 = {
     L.solid([-6.5, 5.6, -2.2], [6.5, 6.4, 2.2], 'concrete_ext');
     L.solid([-9, 5.6, -2.2], [-6.5, 6.4, 2.2], 'concrete_ext');
     L.solid([6.5, 5.6, -2.2], [9, 6.4, 2.2], 'concrete_ext');
-    for (const x of [-9, 9]) L.solid([x - 0.4, 0, -2.2], [x + 0.4, 5.6, 2.2], 'concrete_ext');
+    // each end of the deck stands on a pair of columns with a lintel, so you can see under it
+    for (const x of [-9, 9]) {
+      for (const z of [-1.75, 1.75]) L.solid([x - 0.4, 0, z - 0.4], [x + 0.4, 5.6, z + 0.4], 'concrete_ext');
+      L.solid([x - 0.36, 4.85, -1.35], [x + 0.36, 5.6, 1.35], 'concrete_ext');
+    }
     // the torrent
     L.solid([-6, -12, -8], [6, -11, 8], 'concrete_dark');
     L.brine({ min: [-6, -11, -8], max: [6, -8.5, 8], current: [0, 4.5] });
@@ -260,7 +264,10 @@ const c24 = {
     L.fill([19, 1.8, 0], { radius: 6, intensity: 0.8 });
     for (const x of [-18, 12]) { L.props.cyl([x, 0, -5.2], 0, [0, 2.6, 0], 0.06, 0.09, 5.2, 'paint_grey', { seg: 10 }); const l = new THREE.PointLight('#ff9f45', 70, 26, 2); l.position.set(x, 4.9, -4.6); L.addLight(l); }
     const under = new THREE.PointLight('#ffcf94', 14, 12, 2); under.position.set(0, 4.6, 0); L.addLight(under);
-    L.props.sign([-7.3, 3.0, -2.25], 0, ['SPILLWAY BRIDGE — CLOSED'], { w: 1.6, h: 0.22, bg: '#7d2a1f' });
+    // a caged lamp on the west columns, over the self-tare post
+    L.props.bulkhead([-8.62, 5.2, 0], PI / 2, { intensity: 16 });
+    L.fill([-7.6, 1.6, 0], { radius: 4, intensity: 0.5 });
+    L.props.sign([-9.37, 5.22, 0], -PI / 2, ['SPILLWAY BRIDGE — CLOSED'], { w: 1.6, h: 0.22, bg: '#7d2a1f' });
     L.solid([-6.5, 6.4, -0.6], [6.5, 7.6, 0.6], 'concrete_ext');
     L.ext = buildExterior(L, { rainBox: [-40, -40, -40, 15.9, 60, 40], water: -9, town: true, townDir: 1 });
     L.note({ pos: [-12, 1.2, 5.6], rotY: PI, wall: true, doc: DOCS.engineerLetter });
@@ -286,11 +293,11 @@ const c25 = {
   build(L) {
     L.spawn = { pos: [-24, 4, 0], yaw: -PI / 2 };
     L.killY = -6;
-    L.fog('#0c0f10', 0.028);
-    L.env(0.3);
+    L.fog('#141c1c', 0.022);
+    L.env(0.45);
     L.reverb = 'vast';
     L.ambience = { room: 0.3, drone: 0.35, drips: 1.0, creaks: 0.6, every: 1.8 };
-    L.hemi('#56646a', '#2a2622', 0.45);
+    L.hemi('#7d9496', '#3a3530', 0.95);
     const mats = L.game.engine.materials;
     // the lake bed and the inside of the caisson
     L.solid([-60, -2, -60], [60, 0, 60], 'mud', { surface: 'mud', grime: false });
@@ -316,7 +323,7 @@ const c25 = {
       { pos: [-6.2, 0, 1.2], weight: -2, rotY: 0.15 },
       { pos: [-2.0, 0, 0.0], weight: -6, rotY: -0.1 },
     ];
-    L.named.houses = H.map((h, i) => L.house({ ...h, base: 4, step: 2, max: 16, style: i, name: 'house of Halde' }));
+    L.named.houses = H.map((h, i) => L.house({ ...h, base: 4, step: 2, max: 16, style: i, name: 'house of Halde', lantern: true }));
     // the church tower with its belfry at 14 m
     const tx = 2.6;
     L.solid([tx - 2, 0, -2], [tx + 2, 13.4, 2], 'stone');
@@ -339,7 +346,7 @@ const c25 = {
       if (x < -14 && Math.abs(z) < 8) continue;
       L.house({ pos: [x, 0, z], weight: -Math.floor(r() * 6), base: 2, step: 1.6, max: 14, style: i, rotY: r() * PI * 2 }).fixedDecor = true;
     }
-    for (const [x, z] of [[-10, -12], [6, 10], [-16, 14], [18, -6]]) L.point([x, 7, z], { color: '#d8e4e6', intensity: 30, distance: 30 });
+    for (const [x, z] of [[-10, -12], [6, 10], [-16, 14], [18, -6]]) L.point([x, 9, z], { color: '#cfe0e2', intensity: 60, distance: 34 });
     L.point([tx, 15.5, 0], { color: '#ffd29a', intensity: 14, distance: 9 });
     L.exitCageSpot = null;
   },
@@ -415,6 +422,7 @@ const c26 = {
     // the Great Balance: two pans on one beam
     const lift = L.lift({ a: [8.2, 2.0, -4.4], b: [8.2, 2.0, 4.4], size: [2.4, 2.4], range: [-1.6, 1.6], start: 1.6, ballast: [6, 2], ballastSide: [-1, -1], railsA: 'xz', railsB: 'xZ', pulleyY: 7.4, maxV: 0.5, gain: 0.4 });
     L.named.balance = lift;
+    { const sp = new THREE.SpotLight('#ffd9a8', 60, 18, 0.55, 0.5, 1.6); sp.position.set(8.2, 7.6, 0); sp.target.position.set(8.2, 0, 0); L.addLight(sp); L.root.add(sp.target); }
     L.props.sign([8.2, 4.2, -8.97], 0, ['VAULT'], { w: 1.0, h: 0.24, style: 'plate', bg: '#b89a5a', fg: '#2a2218' });
     L.props.sign([8.2, 4.2, 8.97], PI, ['HALDE'], { w: 1.0, h: 0.24, style: 'plate', bg: '#b89a5a', fg: '#2a2218' });
     L.booth({ pos: [6.0, 8, 0], rotY: -PI / 2, range: [-2, 2], post: true, hang: true });

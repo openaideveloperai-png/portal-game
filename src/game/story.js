@@ -53,6 +53,7 @@ export class Story {
     this.speaking = false;
     this.staticLoop?.stop(0.1); this.staticLoop = null;
     this.game.ui.clearSubtitles();
+    this.game.ui.hideHint();
   }
 
   run(fn) {
