@@ -15,6 +15,8 @@ const W = +(process.env.W || 960), H = +(process.env.H || 540);
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
 const errors = [];
+// BLOCK=<regex>: refuse matching requests (to prove a build doesn't need them)
+if (process.env.BLOCK) await page.route(new RegExp(process.env.BLOCK), r => { console.log('blocked', r.request().url()); return r.abort(); });
 page.on('console', m => { const t = m.type(); if (t === 'error' || t === 'warning') errors.push(`[${t}] ${m.text()}`); if (process.env.LOG) console.log('console:', m.text()); });
 page.on('pageerror', e => errors.push('[pageerror] ' + e.message + '\n' + (e.stack || '').split('\n').slice(0, 4).join('\n')));
 const t0 = Date.now();

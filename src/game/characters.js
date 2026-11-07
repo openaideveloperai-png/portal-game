@@ -273,7 +273,21 @@ export class Characters {
     loader.setMeshoptDecoder(MeshoptDecoder);
     const files = ['body_m', 'body_f', 'hair_parted', 'hair_buns', 'hair_long', 'hair_beard', 'hair_buzzed', 'mannequin_m', 'mannequin_f', 'mannequin_lod', 'anims_a', 'anims_b'];
     let done = 0;
-    await Promise.all(files.map(f => loader.loadAsync(BASE + f + '.glb').then(g => { this.gltf[f] = g; onProgress(++done / (files.length + 4)); })));
+    // Some hosts won't serve .glb files; for those the build ships the models inside a
+    // script as base64 (window.TARE_MODELS, see tools/pack-models.mjs).
+    const packed = window.TARE_MODELS || null;
+    const fromBase64 = str => { const bin = atob(str), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; };
+    const fetchModel = f => {
+      if (!packed?.[f]) return loader.loadAsync(BASE + f + '.glb');
+      const buf = fromBase64(packed[f]); delete packed[f];
+      // Such hosts may also refuse fetch() of blob: URLs while allowing blob: images, so
+      // let three.js decode the embedded textures through <img> (it picks its image
+      // loader synchronously when parsing starts, from whether createImageBitmap exists).
+      const cib = window.createImageBitmap;
+      try { window.createImageBitmap = undefined; } catch (e) { /* read-only: keep the default */ }
+      try { return loader.parseAsync(buf, BASE); } finally { try { window.createImageBitmap = cib; } catch (e) { /* ignored */ } }
+    };
+    await Promise.all(files.map(f => fetchModel(f).then(g => { this.gltf[f] = g; onProgress(++done / (files.length + 4)); })));
     const tl = new THREE.TextureLoader();
     this.skins = {};
     await Promise.all(['m_light', 'm_dark', 'f_light', 'f_dark'].map(k => tl.loadAsync(BASE + 'skin_' + k + '.webp').then(t => {

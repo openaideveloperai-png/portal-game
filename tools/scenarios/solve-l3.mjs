@@ -122,7 +122,8 @@ export default async ({ page, shot, evalT }) => {
     await page.evaluate(`(${fn.toString()})(window.S, window.__tare)`);
     const st = await evalT(() => window.S.state());
     const extra = await evalT(() => Object.fromEntries(Object.entries(window).filter(([k]) => k.startsWith('__') && k !== '__tare' && k !== '__rideDebug')));
-    console.log(id.padEnd(6), st.cage >= 0.9 ? 'SOLVED' : 'NOT SOLVED', JSON.stringify({ w: st.w.slice(0, 8), plates: st.plates, cage: st.cage, player: st.player }), JSON.stringify(extra));
+    const ok = id === 'finale' ? extra.__state === 'ending' : st.cage >= 0.9; // the epilogue has no exit lift: it ends the game
+    console.log(id.padEnd(6), ok ? 'SOLVED' : 'NOT SOLVED', JSON.stringify({ w: st.w.slice(0, 8), plates: st.plates, cage: st.cage, player: st.player }), JSON.stringify(extra));
     await page.waitForTimeout(300);
     await shot('l3-' + id);
   }

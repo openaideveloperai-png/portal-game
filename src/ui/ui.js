@@ -51,6 +51,7 @@ export class UI {
   // ------------------------------------------------------------------ title
   showTitle({ canContinue, continueNote, onNew, onContinue, onChapters, onSettings, onCredits }) {
     this.hideTitle(true);
+    const touchOnly = !!window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
     const item = (label, fn, note = null, disabled = false) => el('li', {}, [el('button', { onclick: () => { audio.init(); audio.play('ui', { kind: 'select' }); fn(); }, onmouseenter: () => audio.play('ui', { kind: 'move' }), ...(disabled ? { disabled: '' } : {}) }, [label, note ? el('span', { class: 'note', text: note }) : null])]);
     this.titleEl = el('div', { class: 'title' }, [
       el('div', { class: 'block' }, [
@@ -65,7 +66,7 @@ export class UI {
           item('Credits', onCredits),
         ]),
       ]),
-      el('div', { class: 'foot', html: '<b>KALDEN DAM · 1979</b><br>Mouse and keyboard. Headphones recommended.' }),
+      el('div', { class: 'foot', html: touchOnly ? '<b>KALDEN DAM · 1979</b><br><span class="need">This game needs a mouse and keyboard.<br>Open it on a computer to play.</span>' : '<b>KALDEN DAM · 1979</b><br>Mouse and keyboard. Headphones recommended.' }),
     ]);
     this.root.append(this.titleEl);
   }

@@ -62,6 +62,13 @@ The result is in `dist/`. Any static file server works, for example:
 npx vite preview
 ```
 
+Some hosts refuse to serve `.glb` files. For those, build with the character models packed
+into a script instead (`dist/assets/models.js`, loaded by the page before the game script):
+
+```bash
+npm run build:embedded
+```
+
 ### Publishing on GitHub Pages
 
 `.github/workflows/pages.yml` builds the game and publishes `dist/`. Turn it on once in the
