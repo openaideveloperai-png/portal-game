@@ -24,6 +24,7 @@ export class Tare {
     this.sway = V(); this.swayVel = V();
     this.effects = [];
     this.msg = null;
+    this.vmBase = { pos: [0.225, -0.168, -0.41], rot: [-0.4, 0.8, 0.28] };
     this.buildViewmodel();
   }
 
@@ -32,9 +33,8 @@ export class Tare {
     const eng = this.game.engine;
     const mats = eng.materials;
     const root = new THREE.Group();
-    root.position.set(0.2, -0.22, -0.5);
-    root.rotation.set(0.0, 0.3, 0.0);
-    root.scale.setScalar(0.8);
+    root.position.set(0.225, -0.168, -0.41);
+    root.scale.setScalar(0.72);
     eng.viewCamera.add(root);
     this.vm = root;
     const inst = new THREE.Group();
@@ -93,8 +93,10 @@ export class Tare {
     this.needleVal = 0; this.needleShown = 0; this.needleVel = 0;
     // vials for stored measures (built when capacity changes)
     this.vialGroup = new THREE.Group();
-    this.vialGroup.position.set(0, 0.066, -0.035);
+    this.vialGroup.position.set(0, 0.06, -0.035);
     inst.add(this.vialGroup);
+    const rack = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.008, 0.024), mats.get('brass'));
+    rack.position.set(0, 0.062, -0.035); inst.add(rack);
     this.vials = [];
     this.setCapacity(this.capacity);
     // serial plate
@@ -118,20 +120,24 @@ export class Tare {
     const mats = this.game.engine.materials;
     for (const v of this.vials) this.vialGroup.remove(v.g);
     this.vials = [];
-    const gap = 0.017;
+    const gap = 0.02;
     for (let i = 0; i < n; i++) {
       const g = new THREE.Group();
       g.position.set((i - (n - 1) / 2) * gap, 0, 0);
-      const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.0062, 0.0062, 0.028, 14, 1, true), mats.glass({ opacity: 0.28, tint: '#dfe8e2' }));
-      g.add(glass);
-      const fluid = new THREE.Mesh(new THREE.CylinderGeometry(0.0052, 0.0052, 0.026, 14), new THREE.MeshStandardMaterial({ color: '#2b2622', metalness: 0.9, roughness: 0.15 }));
-      fluid.geometry.translate(0, 0.013, 0);
-      fluid.position.y = -0.013;
+      const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.0085, 0.036, 16, 1, true), mats.glass({ opacity: 0.45, tint: '#dfe6df' }));
+      glass.position.y = 0.022; g.add(glass);
+      const fluid = new THREE.Mesh(new THREE.CylinderGeometry(0.0074, 0.0074, 0.034, 16), new THREE.MeshStandardMaterial({ color: '#2e2925', metalness: 0.95, roughness: 0.12 }));
+      fluid.geometry.translate(0, 0.017, 0);
+      fluid.position.y = 0.005;
       fluid.scale.y = 0.001;
       g.add(fluid);
-      for (const y of [-0.0155, 0.0155]) {
-        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.0072, 0.0072, 0.004, 14), mats.get('brass'));
+      for (const y of [0.003, 0.041]) {
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.0098, 0.0098, 0.005, 16), mats.get('brass'));
         cap.position.y = y; g.add(cap);
+      }
+      for (const a of [0.6, 2.7, 4.8]) {
+        const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0011, 0.038, 4), mats.get('brass'));
+        wire.position.set(Math.cos(a) * 0.0093, 0.022, Math.sin(a) * 0.0093); g.add(wire);
       }
       this.vialGroup.add(g);
       this.vials.push({ g, fluid, level: 0 });
@@ -353,9 +359,10 @@ export class Tare {
     this.recoil = damp(this.recoil, 0, 9, dt);
     this.ring = Math.max(0, this.ring - dt * 1.4);
     const holding = !!this.held;
-    const base = holding ? V(0.24, -0.3, -0.48) : V(0.2, -0.22, -0.5);
+    const vb = this.vmBase;
+    const base = V(vb.pos[0], vb.pos[1] - (holding ? 0.08 : 0), vb.pos[2]);
     this.vm.position.set(base.x + this.sway.x * 0.4 + bobX, base.y + this.sway.y * 0.4 + bob - p.landDip * 0.3, base.z + this.recoil * 0.025);
-    this.vm.rotation.set(-0.08 + this.recoil * 0.12 + this.sway.y, 0.32 + this.sway.x, 0.03 + this.sway.x * 0.5);
+    this.vm.rotation.set(vb.rot[0] + this.recoil * 0.12 + this.sway.y, vb.rot[1] + this.sway.x, vb.rot[2] + this.sway.x * 0.5, 'YXZ');
     for (let i = 0; i < 2; i++) this.prongs[i].rotation.y = Math.sin(performance.now() * 0.09 + i * Math.PI) * 0.03 * this.ring;
     // gauge reads the aimed object's weight
     const t = this.target;

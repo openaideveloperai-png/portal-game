@@ -61,6 +61,7 @@ export class Game {
       console.error(e);
       this.ui.loadingError('Some character files could not be loaded. The game will continue without people.');
     }
+    try { if (this.characters.ready) this.tare.attachHand(this.characters.viewArm()); } catch (e) { console.warn('view arm', e); }
     this.ui.setLoading(0.85, 'Opening the ledgers…');
     await document.fonts?.ready;
     this.engine.start();

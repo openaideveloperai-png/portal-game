@@ -48,7 +48,7 @@ export const OUTFITS = {
   village_f: { top: '#3a3430', topKind: 0, sleeves: 'long', bottom: '#3a3430', dress: true, apron: '#cfc6b0', legs: '#4a403a', shoes: '#1f1a17', buttons: true, collar: 1 },
   village_m: { top: '#d8cfba', topKind: 1, sleeves: 'rolled', vest: '#2f2c2a', bottom: '#3d3833', shoes: '#241e19', belt: '#2b1d14', buttons: true, collar: 0 },
   // the auditor's sleeve and glove (first-person)
-  auditor: { top: '#2c3340', topKind: 0, sleeves: 'long', coat: true, bottom: '#2c3340', shoes: '#1d1a18', gloves: '#4d3423', buttons: false, collar: 1 },
+  auditor: { top: '#323a48', topKind: 0, sleeves: 'long', coat: true, bottom: '#2c3340', shoes: '#1d1a18', gloves: '#7a5638', buttons: false, collar: 1 },
 };
 
 const hex = h => new THREE.Color(h).convertSRGBToLinear();
@@ -76,11 +76,11 @@ void main() {
   float torso = vA.x, upper = vA.y, lower = vA.z, hand = vA.w;
   float thigh = vB.x, calf = vB.y, foot = vB.z, head = vB.w;
   bool armZone = (upper + lower + hand) > 0.5 || (ax > lShoulder + 0.05 && y > lArmY - 0.16);
-  bool isHand = armZone && ax > lWrist - 0.005;
+  bool isHand = armZone && ax > (uGlove > 0.5 ? lWrist + 0.012 : lWrist - 0.005);
   bool isHead = !armZone && (head > 0.5 || y > lNeck + 0.02) && y > lCollar - 0.02;
   bool isFoot = (foot > 0.5 || y < lAnkle) && !armZone;
   bool isLeg = !isFoot && !armZone && y < lWaist;
-  float sleeveEnd = uRolled > 0.5 ? (lElbow + 0.06) : (lWrist - 0.01);
+  float sleeveEnd = uRolled > 0.5 ? (lElbow + 0.06) : (uGlove > 0.5 ? lWrist + 0.012 : lWrist - 0.01);
   bool isSleeve = armZone && !isHand && ax < sleeveEnd;
   bool isForearm = armZone && !isHand && !isSleeve;
   bool isTop = (!armZone && !isHead && !isLeg && !isFoot) || isSleeve;
@@ -593,6 +593,78 @@ export class Characters {
     tails.bind(body.skeleton, body.bindMatrix);
     tails.castShadow = true; tails.frustumCulled = false;
     body.parent.add(tails);
+  }
+
+  // ------------------------------------------------------------------ the first-person arm
+  // The right forearm and gloved hand of a dressed body, posed by a frame of the
+  // torch-holding animation, baked to a static mesh and fitted around the tare's grip.
+  viewArm() {
+    const h = this.makeHuman({ body: 'm', skin: 'light', outfit: 'auditor', hair: null, coatTails: false, smooth: 3, name: 'viewarm' });
+    const clip = this.clip('Idle_Torch_Loop');
+    if (clip) { const a = h.mixer.clipAction(clip); a.play(); h.mixer.setTime(0.4); }
+    h.root.updateMatrixWorld(true);
+    const body = h.body;
+    body.skeleton.update();
+    const names = body.skeleton.bones.map(b => b.name);
+    const keep = new Set(names.filter(n => /_r$/.test(n) && /(lowerarm|hand|index|middle|ring|pinky|thumb)/.test(n)).map(n => names.indexOf(n)));
+    const upper = names.indexOf('upperarm_r');
+    const g = body.geometry;
+    const si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+    const dominant = i => { let best = -1, bw = -1; for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; best = si.getComponent(i, k); } } return best; };
+    const vKeep = new Uint8Array(g.attributes.position.count);
+    for (let i = 0; i < vKeep.length; i++) { const d = dominant(i); vKeep[i] = keep.has(d) || (d === upper && g.attributes.position.getX(i) < -0.38) ? 1 : 0; }
+    const idx = g.index;
+    const pos = [], uv = [], tri = [];
+    const remap = new Map();
+    const v = new THREE.Vector3();
+    const vid = i => {
+      if (remap.has(i)) return remap.get(i);
+      body.getVertexPosition(i, v); v.applyMatrix4(body.matrixWorld);
+      pos.push(v.x, v.y, v.z); uv.push(g.attributes.uv.getX(i), g.attributes.uv.getY(i));
+      remap.set(i, pos.length / 3 - 1);
+      return pos.length / 3 - 1;
+    };
+    for (let f = 0; f < idx.count; f += 3) {
+      const a = idx.getX(f), b = idx.getX(f + 1), c = idx.getX(f + 2);
+      if (!(vKeep[a] && vKeep[b] && vKeep[c])) continue;
+      tri.push(vid(a), vid(b), vid(c));
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setIndex(tri);
+    geo.computeVertexNormals();
+    // smooth across UV seams too: average normals of coincident vertices
+    { const nA = geo.attributes.normal, pA = geo.attributes.position, key = i => `${Math.round(pA.getX(i) * 1e4)},${Math.round(pA.getY(i) * 1e4)},${Math.round(pA.getZ(i) * 1e4)}`, acc = new Map();
+      for (let i = 0; i < pA.count; i++) { const k = key(i); const e = acc.get(k) || [0, 0, 0]; e[0] += nA.getX(i); e[1] += nA.getY(i); e[2] += nA.getZ(i); acc.set(k, e); }
+      for (let i = 0; i < pA.count; i++) { const e = acc.get(key(i)); const l = Math.hypot(...e) || 1; nA.setXYZ(i, e[0] / l, e[1] / l, e[2] / l); } }
+    // key points of the posed hand (world space of the posed body)
+    const wp = name => h.bones[name].getWorldPosition(new THREE.Vector3());
+    const I1 = wp('index_01_r'), P1 = wp('pinky_01_r'), H = wp('hand_r'), E = wp('lowerarm_r'), T2 = wp('thumb_02_r');
+    const axis = I1.clone().sub(P1).normalize();
+    const knuckles = I1.clone().add(P1).multiplyScalar(0.5);
+    const palmDir = T2.clone().sub(knuckles).normalize();
+    const C = knuckles.clone().lerp(T2, 0.38).addScaledVector(palmDir.clone().cross(axis).normalize(), 0.0);
+    const fore = E.clone().sub(H).normalize();
+    // build a frame: grip axis -> instrument grip axis; forearm -> back toward the camera
+    const gAxis = new THREE.Vector3(0, Math.cos(0.28), Math.sin(0.28)).normalize();
+    const want = new THREE.Vector3(0.35, -0.55, 1).normalize();
+    const q1 = new THREE.Quaternion().setFromUnitVectors(axis, gAxis);
+    const f1 = fore.clone().applyQuaternion(q1);
+    const proj = (vv) => vv.clone().addScaledVector(gAxis, -vv.dot(gAxis)).normalize();
+    const a1 = proj(f1), a2 = proj(want);
+    let ang = Math.acos(Math.max(-1, Math.min(1, a1.dot(a2))));
+    if (a1.clone().cross(a2).dot(gAxis) < 0) ang = -ang;
+    const q2 = new THREE.Quaternion().setFromAxisAngle(gAxis, ang);
+    const q = q2.multiply(q1);
+    const mesh = new THREE.Mesh(geo, body.material);
+    mesh.frustumCulled = false; mesh.castShadow = false;
+    const grip = new THREE.Vector3(0, -0.02, 0);
+    mesh.quaternion.copy(q);
+    mesh.position.copy(grip).sub(C.clone().applyQuaternion(q));
+    const group = new THREE.Group();
+    group.add(mesh);
+    return group;
   }
 
   // ------------------------------------------------------------------ NPCs
