@@ -18,6 +18,7 @@ export class UI {
     this.hud.append(this.reticle, this.readout, this.flashEl, this.cardEl, this.hintEl, this.subs);
     root.append(this.hud, this.fadeEl);
     this.hud.classList.add('passive');
+    this.fadeEl.classList.add('passive');
     this.docOpen = null;
     this.layer = null;
   }

@@ -35,6 +35,7 @@ export class Game {
     engine.onFixed = dt => this.fixed(dt);
     engine.onFrame = (dt, a) => this.frame(dt, a);
     input.onLockChange = (locked, failed) => this.onLock(locked, failed);
+    input.onFreeLook = () => this.ui.hint('This window won\u2019t lend the game your mouse. <b>Drag</b> to look around, <b>click</b> to use the tare. Opening the game in its own tab gives full mouse look.', 9000);
     input.onEscape = () => this.onEscape();
     window.addEventListener('keydown', e => {
       if (this.ui.docOpen && (e.code === 'KeyE' || e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); this.ui.docOpen.close(); }
