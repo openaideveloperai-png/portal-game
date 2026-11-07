@@ -185,7 +185,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .card .k { font-family: var(--sign); font-weight: 500; letter-spacing: .3em; text-transform: uppercase; font-size: 13px; color: rgba(233,225,204,.75); }
 .card .t { font-family: var(--serif); font-style: italic; font-size: 30px; color: var(--bone); margin-top: 4px; }
 .hint {
-  position: absolute; left: 50%; bottom: 17vh; transform: translateX(-50%); text-align: center;
+  position: absolute; left: 50%; top: 13vh; transform: translateX(-50%); text-align: center;
   font-family: var(--type); font-size: 14px; color: rgba(240,232,214,.9); text-shadow: 0 1px 3px rgba(0,0,0,.9); transition: opacity .5s ease;
   max-width: 70ch;
 }

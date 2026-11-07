@@ -183,6 +183,7 @@ export class Game {
     }
     this.player.attach(L.phys, spawn);
     L.start();
+    if (!cageLocal && L.entryCage) setTimeout(() => { if (this.level === L) L.entryCage.openGate(); }, 900);
     if (!title) {
       this.save.setLevel(index);
       if (def.ledger !== 'P') setTimeout(() => this.ui.card(`Ledger ${def.ledger}${def.chamber ? ' · Chamber ' + def.chamber : ''}`, def.title), cageLocal ? 2600 : 600);
@@ -357,6 +358,12 @@ export class Game {
       noclip(on = true) { g.player.noclip = on; },
       setCapacity(n) { g.tare.setCapacity(n); },
       async steps(n) { for (let i = 0; i < n; i++) await nextFrame(); },
+      // run the simulation for `sec` seconds without rendering (deterministic tests)
+      simulate(sec) { const n = Math.round(sec * 60); for (let i = 0; i < n; i++) { g.fixed(1 / 60); g.level.update(1 / 60); g.story.tick(1 / 60); } return g.level.id; },
+      place(i, x, y, z) { const w = g.level.weighted[i]; w.body.setTranslation({ x, y, z }, true); w.body.setLinvel({ x: 0, y: 0, z: 0 }, true); w.body.setAngvel({ x: 0, y: 0, z: 0 }, true); },
+      setW(i, v) { g.level.weighted[i].setWeight(v); },
+      named(n) { return g.level.named[n]; },
+      cageOpen() { return g.level.exitCage ? +g.level.exitCage.open.toFixed(2) : null; },
     };
   }
 }

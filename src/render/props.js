@@ -405,7 +405,8 @@ export class Props {
     }
     if (collide) {
       const mid = A.clone().add(B).multiplyScalar(0.5);
-      this.collider([mid.x, mid.y + h / 2 + 0.25, mid.z], [0.05, h / 2 + 0.25, len / 2], rotY, { kind: 'static', surface: 'metal' });
+      const q = new THREE.Quaternion().setFromAxisAngle(UPV, rotY);
+      this.L.phys.fixedBox([mid.x, mid.y + h / 2 + 0.25, mid.z], [0.05, h / 2 + 0.25, len / 2], { rot: { x: q.x, y: q.y, z: q.z, w: q.w }, info: { kind: 'static', surface: 'metal' }, group: this.L.phys.constructor.RAIL_GROUP });
     }
   }
 

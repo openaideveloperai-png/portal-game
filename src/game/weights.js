@@ -50,7 +50,7 @@ export class Weighted {
   applyGravity() {
     if (!this.body || this.fixed) return;
     const w = this.weight;
-    this.body.setGravityScale(this.held ? 0 : w / 2, true);
+    this.body.setGravityScale(this.held || this.ridden ? 0 : w / 2, true);
     this.body.setLinearDamping(this.held ? 4 : (w === 0 ? 0.35 : 0.06));
     this.body.setAngularDamping(this.held ? 8 : (w === 0 ? 0.8 : 0.45));
     this.body.wakeUp();
@@ -224,6 +224,7 @@ export class Crate extends Weighted {
     const v = this.body.linvel();
     const sp = Math.hypot(v.x, v.y, v.z);
     if (sp > 14) this.body.setLinvel({ x: v.x * 14 / sp, y: v.y * 14 / sp, z: v.z * 14 / sp }, true);
+    else if (v.y > 3.2 && this.weight < 0) this.body.setLinvel({ x: v.x, y: 3.2, z: v.z }, true);
   }
 
   respawn(resetWeight = true) {

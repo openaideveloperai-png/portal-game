@@ -21,17 +21,25 @@ export const G = {
   CRATE_ONLY: 1 << 5,   // blocks objects but lets people through (turnstiles, ballast screens)
   PLAYER_ONLY: 1 << 6,  // blocks people but lets objects through (clips, chute guards)
   RAY_ONLY: 1 << 7,     // only hit by aim rays (dials on booths, wall-mounted gauges)
+  RAIL: 1 << 8,         // railings: stop people and objects, let the aim ray through
+  KCC: 1 << 9,          // membership used only by the character controller's queries
 };
 export const groups = (member, filter) => ((member & 0xffff) << 16) | (filter & 0xffff);
 export const GROUPS = {
-  static: groups(G.STATIC, G.DYNAMIC | G.PLAYER | G.HELD | G.DEBRIS),
-  dynamic: groups(G.DYNAMIC, G.STATIC | G.DYNAMIC | G.PLAYER | G.HELD | G.CRATE_ONLY | G.DEBRIS),
-  held: groups(G.HELD, G.STATIC | G.DYNAMIC | G.CRATE_ONLY),
-  player: groups(G.PLAYER, G.STATIC | G.DYNAMIC | G.PLAYER_ONLY),
+  // The character controller queries through the KCC membership. The capsule itself
+  // still touches crates in the solver; the controller leads platform motion so a
+  // crate rising under you carries you rather than jamming (see Player).
+  static: groups(G.STATIC, G.DYNAMIC | G.PLAYER | G.HELD | G.DEBRIS | G.KCC),
+  dynamic: groups(G.DYNAMIC, G.STATIC | G.DYNAMIC | G.PLAYER | G.HELD | G.CRATE_ONLY | G.DEBRIS | G.RAIL | G.KCC),
+  held: groups(G.HELD, G.STATIC | G.DYNAMIC | G.CRATE_ONLY | G.RAIL),
+  ridden: groups(G.DYNAMIC, G.STATIC | G.DYNAMIC | G.HELD | G.CRATE_ONLY | G.DEBRIS | G.RAIL | G.KCC),
+  player: groups(G.PLAYER, G.STATIC | G.DYNAMIC | G.PLAYER_ONLY | G.RAIL),
+  kcc: groups(G.KCC, G.STATIC | G.DYNAMIC | G.PLAYER_ONLY | G.RAIL),
+  rail: groups(G.RAIL, G.DYNAMIC | G.PLAYER | G.HELD | G.KCC),
   crateOnly: groups(G.CRATE_ONLY, G.DYNAMIC | G.HELD),
-  playerOnly: groups(G.PLAYER_ONLY, G.PLAYER),
+  playerOnly: groups(G.PLAYER_ONLY, G.PLAYER | G.KCC),
   debris: groups(G.DEBRIS, G.STATIC | G.DYNAMIC),
-  rayOnly: groups(G.RAY_ONLY, 0),
+  rayOnly: groups(G.RAY_ONLY, G.RAY_ONLY),
   // query filters
   aim: groups(0xffff, G.STATIC | G.DYNAMIC | G.HELD | G.RAY_ONLY | G.PLAYER_ONLY),
   sight: groups(0xffff, G.STATIC | G.DYNAMIC),
@@ -41,6 +49,7 @@ const _v = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 
 export class PhysicsWorld {
+  static RAIL_GROUP = GROUPS.rail;
   constructor() {
     this.world = new R.World({ x: 0, y: -9.81, z: 0 });
     this.world.timestep = 1 / 60;

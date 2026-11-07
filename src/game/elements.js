@@ -2,7 +2,7 @@
 // reset() (back to the chamber's initial state) and an `active` signal where relevant.
 import * as THREE from 'three';
 import { R, GROUPS } from '../core/physics.js';
-import { loadOn, Crate } from './weights.js';
+import { loadOn, Crate, Weighted, Drum } from './weights.js';
 import { dialTexture, signTexture, flapTexture, labelTexture } from '../render/signs.js';
 import { boxGeom } from '../render/geometry.js';
 import { audio } from '../core/audio.js';
@@ -306,7 +306,7 @@ export class Wire extends Element {
 
 // ---------------------------------------------------------------- counterweight lift
 export class Lift extends Element {
-  constructor(L, { a, b, size = [2, 2], range = [-4, 4], start = 0, selfA = 0, selfB = 0, pulleyY = null, gain = 0.55, maxV = 1.4, railsA = 'xz', railsB = 'xz', mat = 'paint_ochre', cageA = true, cageB = true }) {
+  constructor(L, { a, b, size = [2, 2], range = [-4, 4], start = 0, selfA = 0, selfB = 0, pulleyY = null, gain = 0.55, maxV = 1.4, railsA = 'xz', railsB = 'xz', mat = 'paint_ochre', cageA = true, cageB = true, ballast = null, ballastSide = [1, -1], name = null }) {
     super(L);
     this.kind = 'lift';
     this.a0 = V(...a); this.b0 = V(...b);
@@ -341,6 +341,8 @@ export class Lift extends Element {
     L.root.add(top);
     this.loadA = 0; this.loadB = 0;
     this.hum = null;
+    this.ballast = [];
+    if (ballast) ballast.forEach((w, i) => { if (w !== null && w !== undefined) this.ballast[i] = new LiftBallast(L, this, i, w, ballastSide[i]); });
     this.sync(true);
   }
   makePlat(p0, rails, mat, cage) {
@@ -370,7 +372,7 @@ export class Lift extends Element {
           r.rotation.x = Math.PI / 2; r.rotation.y = Math.atan2(x1 - x0, z1 - z0);
           r.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); g.add(r);
         }
-        this.L.phys.attach(R.ColliderDesc.cuboid(Math.abs(x1 - x0) / 2 + 0.03, 0.35, Math.abs(z1 - z0) / 2 + 0.03).setTranslation((x0 + x1) / 2, 0.35, (z0 + z1) / 2), body, { kind: 'lift', surface: 'metal', owner: this }, GROUPS.static);
+        this.L.phys.attach(R.ColliderDesc.cuboid(Math.abs(x1 - x0) / 2 + 0.03, 0.35, Math.abs(z1 - z0) / 2 + 0.03).setTranslation((x0 + x1) / 2, 0.35, (z0 + z1) / 2), body, { kind: 'lift', surface: 'metal', owner: this }, GROUPS.rail);
       }
       // hanger bars to the rope
       const bar = new THREE.Mesh(new THREE.BoxGeometry(w, 0.08, 0.08), this.mats.get('paint_black'));
@@ -384,8 +386,8 @@ export class Lift extends Element {
     return [this.a0.y - this.s, this.b0.y + this.s];
   }
   fixedUpdate(dt) {
-    this.loadA = loadOn(this.L, this.plats[0].col).load + this.selfA;
-    this.loadB = loadOn(this.L, this.plats[1].col).load + this.selfB;
+    this.loadA = loadOn(this.L, this.plats[0].col).load + this.selfA + (this.ballast[0]?.weight || 0);
+    this.loadB = loadOn(this.L, this.plats[1].col).load + this.selfB + (this.ballast[1]?.weight || 0);
     const net = this.loadA - this.loadB;
     let target = clamp(net * this.gain, -this.maxV, this.maxV);
     if (this.locked) target = 0;
@@ -1102,4 +1104,67 @@ export class Cage extends Element {
   // world <-> cage-local transforms (for the seamless swap between chambers)
   toLocal(v) { return v.clone().sub(V(...this.pos)).applyAxisAngle(UP, -this.rotY); }
   toWorld(v) { return v.clone().applyAxisAngle(UP, this.rotY).add(V(...this.pos)); }
+}
+
+// Iron ballast bolted to a lift cage: weighted (draw/give), rides with the cage.
+class LiftBallast extends Weighted {
+  constructor(L, lift, side, weight, flank = 1) {
+    super(L, { weight, min: 0, max: 9, name: 'cage ballast', carriable: false });
+    this.fixed = true; this.kind = 'ballast';
+    L.weighted.push(this); L.entities.push(this);
+    const plat = lift.plats[side];
+    const [w, d] = lift.size;
+    const g = new THREE.Group();
+    const block = new THREE.Mesh(boxGeom([-0.32, 0, -0.22], [0.32, 0.5, 0.22], { bevel: 0.02, grime: false }), L.game.engine.materials.get('paint_black', { param: 0.7 }));
+    block.castShadow = block.receiveShadow = true; g.add(block);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 16), L.game.engine.materials.get('steel_dark'));
+    ring.position.y = 0.56; g.add(ring);
+    for (const s2 of [1, -1]) {
+      const dr = new Drum(0.15); dr.mesh.position.set(0, 0.27, s2 * 0.226); if (s2 < 0) dr.mesh.rotation.y = Math.PI; g.add(dr.mesh); dr.set(weight); this.drums.push(dr);
+    }
+    // hung on the outside flank of the cage, so it can be seen from above and below
+    const lx = flank * (w / 2 + 0.26), ly = 0.75;
+    g.rotation.y = flank * Math.PI / 2;
+    g.position.set(lx, ly, 0);
+    const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.5), L.game.engine.materials.get('paint_black'));
+    bracket.position.set(flank * (w / 2 + 0.12), ly - 0.03, 0);
+    plat.g.add(g, bracket);
+    this.object = g;
+    this.collider = L.phys.attach(R.ColliderDesc.cuboid(0.22, 0.25, 0.32).setTranslation(lx, ly + 0.25, 0), plat.body, { kind: 'static', owner: this, surface: 'metal' }, GROUPS.static);
+  }
+  position(out = new THREE.Vector3()) { return this.object.getWorldPosition(out).add(new THREE.Vector3(0, 0.3, 0)); }
+  update(dt) { this.shake = Math.max(0, this.shake - dt); this.updateDrums(dt); }
+}
+
+// ---------------------------------------------------------------- twinned crates
+// Two bodies that always share their measures equally (one measure flows at a time).
+export class Twins extends Element {
+  constructor(L, { a, b, mark = '\u25C6' }) {
+    super(L);
+    this.kind = 'twins';
+    this.a = a; this.b = b; this.t = 0;
+    const tex = signTexture([mark + ' TWIN ' + mark], { bg: '#3f5867', fg: '#efe7d2', w: 256, h: 64 });
+    for (const o of [a, b]) {
+      for (const f of [1, 3]) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.085), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.3, polygonOffset: true, polygonOffsetFactor: -3 }));
+        const ang = [0, Math.PI / 2, Math.PI, -Math.PI / 2][f];
+        const h = (o.size || 0.7) / 2 + 0.006;
+        m.position.set(Math.sin(ang) * h, 0.24, Math.cos(ang) * h); m.rotation.y = ang;
+        o.object.add(m);
+      }
+    }
+  }
+  fixedUpdate(dt) {
+    this.t += dt;
+    if (this.t < 0.45) return;
+    const d = this.a.weight - this.b.weight;
+    if (Math.abs(d) >= 2) {
+      this.t = 0;
+      const [hi, lo] = d > 0 ? [this.a, this.b] : [this.b, this.a];
+      hi.setWeight(hi.weight - 1); lo.setWeight(lo.weight + 1);
+      audio.play('tick', { pos: lo.position() });
+      audio.play('tick', { when: 0.08, pos: hi.position() });
+      this.game.tare.fx(true, { kind: 'weighted', obj: lo, point: lo.position() });
+    }
+  }
 }

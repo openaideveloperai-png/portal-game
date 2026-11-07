@@ -6,7 +6,7 @@ import { boxGeom, splitWall, StaticBatch } from '../render/geometry.js';
 import { Props } from '../render/props.js';
 import { WORLD } from '../render/materials.js';
 import { Crate, Anchor } from './weights.js';
-import { Plate, Door, Wire, Lift, Vent, Glass, Brine, Booth, Hopper, Button, Lever, Launcher, Note, Trigger, Cage, Dial, cond } from './elements.js';
+import { Plate, Door, Wire, Lift, Vent, Glass, Brine, Booth, Hopper, Button, Lever, Launcher, Note, Trigger, Cage, Dial, Twins, cond } from './elements.js';
 import { hashString, rng, clamp } from '../core/util.js';
 import { audio } from '../core/audio.js';
 import { FONTS, INK } from '../render/signs.js';
@@ -96,7 +96,7 @@ export class Level {
   // A rectangular room. Interior box [min,max]; walls/floor/ceiling are built outside it.
   // open: { 'x-': [[a0,a1,y0,y1], ...], 'x+': ..., 'z-': ..., 'z+': ... } (a = z for x walls, x for z walls)
   // holes: floor holes [[x0,z0,x1,z1], ...]; ceilHoles likewise.
-  room({ min, max, floor = 'terrazzo', wall = 'plaster_cream', ceiling = 'plaster_grey', dado = null, dadoH = 1.3, rail = 'veneer_oak', t = 0.4, open = {}, holes = [], ceilHoles = [], noCeiling = false, noFloor = false, skirting = 'paint_black', walls = ['x-', 'x+', 'z-', 'z+'], wallMats = {} }) {
+  room({ min, max, floor = 'terrazzo', wall = 'plaster_cream', ceiling = 'plaster_grey', dado = null, dadoH = 1.3, rail = 'veneer_oak', t = 0.4, open = {}, holes = [], ceilHoles = [], noCeiling = false, noFloor = false, skirting = 'paint_black', walls = ['x-', 'x+', 'z-', 'z+'], wallMats = {}, inner = null }) {
     const [x0, y0, z0] = min, [x1, y1, z1] = max;
     if (!noFloor) for (const [a0, a1, b0, b1] of splitRect(x0 - t, x1 + t, z0 - t, z1 + t, holes)) this.solid([a0, y0 - t, b0], [a1, y0, b1], floor, { surface: surfaceOf(floor), grime: false });
     if (!noCeiling) for (const [a0, a1, b0, b1] of splitRect(x0 - t, x1 + t, z0 - t, z1 + t, ceilHoles)) this.solid([a0, y1, b0], [a1, y1 + t, b1], ceiling, { grime: false });
@@ -117,9 +117,18 @@ export class Level {
         this.solid(pmin, pmax, wm, { grime: [y0, y1] });
       }
       // dado tiles (an overlay, proud of the wall like real tiles) + rail, or a skirting
-      const inner = s.out < 0 ? s.plane : s.plane;
+      const inner = s.plane;
       const d = s.out < 0 ? 0.018 : -0.018;
       const ia0 = s.axis === 'z' ? z0 : x0, ia1 = s.axis === 'z' ? z1 : x1;
+        if (arguments[0].inner) {
+        // interior finish over a structural wall (e.g. plaster inside a concrete shell)
+        const fy0 = dado ? y0 + dadoH : y0;
+        for (const [a, b, ya, yb] of splitWall(ia0, ia1, fy0, y1, ops)) {
+          const mn = s.axis === 'z' ? [inner, ya, a] : [a, ya, inner];
+          const mx = s.axis === 'z' ? [inner + d * 0.5, yb, b] : [b, yb, inner + d * 0.5];
+          this.visual(mn, mx, arguments[0].inner, { grime: [y0, y1] });
+        }
+      }
       if (dado) {
         const dp = splitWall(ia0, ia1, y0, y0 + dadoH, ops);
         for (const [a, b, ya, yb] of dp) {
@@ -141,6 +150,26 @@ export class Level {
         }
       }
     }
+  }
+
+  // Where a lift cage sits for a room wall. Returns { pos, rotY, open } where `open`
+  // is the opening rectangle to pass to room({ open: { [wall]: [spot.open] } }).
+  cageSpot(room, wall, a, { t = 0.4, y = null } = {}) {
+    const [x0, , z0] = room.min, [x1, , z1] = room.max;
+    const y0 = y ?? room.min[1];
+    const off = t + 1.2;
+    const spots = {
+      'z-': { pos: [a, y0, z0 - off], rotY: 0 },
+      'z+': { pos: [a, y0, z1 + off], rotY: Math.PI },
+      'x-': { pos: [x0 - off, y0, a], rotY: Math.PI / 2 },
+      'x+': { pos: [x1 + off, y0, a], rotY: -Math.PI / 2 },
+    };
+    return { ...spots[wall], wall, open: [a - 1.2, a + 1.2, y0, y0 + 2.75] };
+  }
+
+  cageToWorld(spot, local) {
+    const v = V(...local).applyAxisAngle(UP, spot.rotY).add(V(...spot.pos));
+    return [v.x, v.y, v.z];
   }
 
   // ------------------------------------------------------------------ lights
@@ -186,6 +215,12 @@ export class Level {
     l.position.set(...pos);
     return this.addLight(l);
   }
+  // Soft, nearly uniform fill inside a room: stands in for light bouncing off floors and walls.
+  fill(pos, { radius = 12, color = '#ffe2bd', intensity = 1.6 } = {}) {
+    const l = new THREE.PointLight(color, intensity, radius, 0.35);
+    l.position.set(...pos);
+    return this.addLight(l);
+  }
   fog(color = '#16130f', density = 0.02) { this.fogSpec = { color, density }; }
   env(intensity = 0.35) { this.envIntensity = intensity; }
   exposure(v = 1) { this.exposureValue = v; }
@@ -205,6 +240,7 @@ export class Level {
   button(o) { return new Button(this, o); }
   lever(o) { return new Lever(this, o); }
   launcher(o) { return new Launcher(this, o); }
+  twins(a, b, o = {}) { return new Twins(this, { a, b, ...o }); }
   note(o) { return new Note(this, o); }
   trigger(o) { return new Trigger(this, o); }
   dial(o) { const d = new Dial(this, o); this.updaters.push(dt => d.update(dt)); return d; }
@@ -213,6 +249,13 @@ export class Level {
   npc(o) { return this.game.characters.spawnNPC(this, o); }
   mannequin(o) { return this.game.characters.spawnMannequin(this, o); }
   refPerson(o) { const r = this.game.characters.spawnRefPerson(this, o); this.weighted.push(r); return r; }
+
+  // an invisible "press E here" volume (picking something up, a switch inside a prop)
+  interactable({ pos, half = [0.25, 0.15, 0.25], prompt = 'Use', onUse }) {
+    const obj = { interact: () => onUse?.(), prompt, kind: 'interactable', enabled: true };
+    this.phys.fixedCollider(R.ColliderDesc.cuboid(...half).setTranslation(...pos), { kind: 'interact', owner: obj, interact: true }, GROUPS.rayOnly);
+    return obj;
+  }
 
   onUpdate(fn) { this.updaters.push(fn); }
   every(fn) { this.updaters.push(fn); }
@@ -301,6 +344,7 @@ export class Level {
     for (const l of this.loops) l?.stop(0.4);
     for (const e of this.entities) e.dispose?.();
     this.def.dispose?.(this);
+    this.onDispose?.();
     this.game.engine.scene.remove(this.root);
     this.root.traverse(o => {
       if (o.isMesh || o.isPoints) {

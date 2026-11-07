@@ -1,0 +1,28 @@
+export default async ({ page, shot, evalT }) => {
+  await page.waitForTimeout(2500);
+  await shot('30-title');
+  await evalT(() => { window.__tare.game.startAt(0); });
+  await page.waitForTimeout(2500);
+  await shot('31-crest-start');
+  await evalT(() => { window.__tare.teleport(10, 0, 0, -Math.PI / 2); window.__tare.look(-Math.PI / 2, 0.05); });
+  await page.waitForTimeout(1200);
+  await shot('32-gatehouse');
+  await evalT(() => { window.__tare.teleport(24.7, 0.05, 0, -Math.PI / 2); });
+  await page.waitForTimeout(500);
+  await evalT(() => window.__tare.simulate(2));
+  console.log('front door', await evalT(() => window.__tare.doors()));
+  await evalT(() => { window.__tare.teleport(29, 0, 4, -Math.PI * 0.75); window.__tare.look(-Math.PI * 0.75, -0.05); });
+  await page.waitForTimeout(1500);
+  await shot('33-reception');
+  await evalT(() => { window.__tare.teleport(49, 0, 2.6, 0); window.__tare.look(0, 0.05); });
+  await page.waitForTimeout(1200);
+  await shot('34-orientation');
+  await evalT(() => { window.__tare.teleport(56.8, 0, -2.6, 0); window.__tare.lookAt(56.8, 1.0, -4.05); });
+  await page.waitForTimeout(800);
+  console.log('aim', JSON.stringify(await evalT(() => window.__tare.aim())));
+  await evalT(() => window.__tare.use());
+  await page.waitForTimeout(800);
+  await evalT(() => { window.__tare.teleport(58.5, 0, 3.0, 0); window.__tare.lookAt(58.5, 0.4, 0.6); });
+  await page.waitForTimeout(1000);
+  await shot('35-instrument-room');
+};

@@ -400,3 +400,66 @@ export function clearSignCache() {
   for (const [k, v] of cache) { if (k !== 'drum' && v && v.dispose) v.dispose(); }
   for (const k of [...cache.keys()]) if (k !== 'drum') cache.delete(k);
 }
+
+// ---------------------------------------------------------------- projector slides (1951 reel)
+export function slideTexture(n) {
+  const key = 'slide' + n;
+  if (cache.has(key)) return cache.get(key);
+  const W = 1024, H = 720;
+  const c = canvas(W, H), x = c.getContext('2d');
+  x.fillStyle = '#ece3cb'; x.fillRect(0, 0, W, H);
+  x.fillStyle = INK; x.strokeStyle = INK; x.textAlign = 'center'; x.textBaseline = 'middle';
+  const title = (t, y = 120, s = 64) => { x.font = `600 ${s}px ${FONTS.sign}`; x.fillText(t, W / 2, y); };
+  const sub = (t, y, s = 30) => { x.font = `italic ${s}px ${FONTS.serif}`; x.fillText(t, W / 2, y); };
+  x.lineWidth = 8;
+  if (n === 0) {
+    // institute crest: a balance in a ring
+    x.beginPath(); x.arc(W / 2, 330, 170, 0, Math.PI * 2); x.stroke();
+    x.lineWidth = 10; x.beginPath(); x.moveTo(W / 2, 220); x.lineTo(W / 2, 430); x.moveTo(W / 2 - 120, 260); x.lineTo(W / 2 + 120, 260); x.stroke();
+    for (const s of [-1, 1]) { x.beginPath(); x.moveTo(W / 2 + s * 120, 260); x.lineTo(W / 2 + s * 120 - 45, 345); x.moveTo(W / 2 + s * 120, 260); x.lineTo(W / 2 + s * 120 + 45, 345); x.stroke(); x.beginPath(); x.ellipse(W / 2 + s * 120, 350, 55, 12, 0, 0, Math.PI * 2); x.fill(); }
+    x.fillRect(W / 2 - 60, 430, 120, 16);
+    title('STATE INSTITUTE OF PONDERAL MEASURES', 600, 46); sub('Kalden · founded 1951', 655);
+  } else if (n === 1) {
+    title('WEIGHT IS A DEBT', 110);
+    x.beginPath(); x.moveTo(200, 560); x.lineTo(820, 560); x.stroke();
+    x.fillRect(300, 330, 140, 140);
+    x.lineWidth = 6; x.setLineDash([16, 12]); x.beginPath(); x.moveTo(370, 480); x.lineTo(370, 552); x.stroke(); x.setLineDash([]);
+    x.beginPath(); x.moveTo(355, 535); x.lineTo(370, 556); x.lineTo(385, 535); x.stroke();
+    x.font = `600 40px ${FONTS.sign}`; x.fillText('OBJECT', 370, 300);
+    x.fillText('EARTH', 640, 610);
+    x.font = `italic 34px ${FONTS.serif}`; x.textAlign = 'left';
+    x.fillText('Every body owes the earth', 520, 380); x.fillText('a sum it may transfer.', 520, 425);
+  } else if (n === 2) {
+    title('THE TARE', 110);
+    // the instrument in profile
+    x.save(); x.translate(W / 2 - 40, 380); x.rotate(-0.15);
+    x.fillRect(-180, -40, 260, 80); x.fillRect(80, -14, 260, 10); x.fillRect(80, 6, 260, 10);
+    x.fillRect(-140, 40, 70, 150);
+    for (let i = 0; i < 3; i++) { x.beginPath(); x.arc(-120 + i * 70, -60, 18, 0, Math.PI * 2); x.stroke(); }
+    x.restore();
+    sub('Left hand: draw a measure.   Right hand: give a measure.', 620, 30);
+  } else if (n === 3) {
+    title('NOTHING IS LOST', 140, 72);
+    sub('Nothing is created. Every measure is entered in the ledger.', 250, 32);
+    x.lineWidth = 2;
+    for (let i = 0; i < 9; i++) { const y = 330 + i * 36; x.beginPath(); x.moveTo(220, y); x.lineTo(800, y); x.stroke(); }
+    x.font = `22px ${FONTS.type}`; x.textAlign = 'left';
+    const rows = [['Stock received', '1 204'], ['Drawn', '− 312'], ['Given', '+ 312'], ['Balance', '1 204']];
+    rows.forEach((r, i) => { x.fillText(r[0], 240, 348 + i * 36 * 2); x.textAlign = 'right'; x.fillText(r[1], 780, 348 + i * 36 * 2); x.textAlign = 'left'; });
+  } else {
+    // a portrait card for the Director
+    x.fillStyle = '#cfc4a8'; x.fillRect(W / 2 - 150, 120, 300, 380);
+    x.fillStyle = '#5b5246';
+    x.beginPath(); x.ellipse(W / 2, 270, 70, 88, 0, 0, Math.PI * 2); x.fill();
+    x.beginPath(); x.moveTo(W / 2 - 140, 500); x.quadraticCurveTo(W / 2, 330, W / 2 + 140, 500); x.fill();
+    x.fillStyle = INK; title('Dr. Ottilie Varga', 570, 48); sub('Director · 1951', 625);
+  }
+  // projected: soft edges, uneven illumination, dust
+  const g = x.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.85);
+  g.addColorStop(0, 'rgba(255,248,230,0)'); g.addColorStop(1, 'rgba(60,45,25,0.55)');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  speckle(x, W, H, 20 + n, 0.12, 1.5);
+  const t = tex(c);
+  cache.set(key, t);
+  return t;
+}

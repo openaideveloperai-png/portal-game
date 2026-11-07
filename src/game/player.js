@@ -63,7 +63,7 @@ export class Player {
     this.lastSafe = { pos: [...spawn.pos], yaw: this.yaw };
   }
 
-  detach() { this.body = null; this.collider = null; this.cc = null; this.phys = null; }
+  detach() { this.riding = null; this.ridePrev = null; this.rideOffset = 0; this.body = null; this.collider = null; this.cc = null; this.phys = null; this.groundCollider = null; this.groundInfo = null; this.grounded = false; }
 
   get up() { return _w.set(0, 1, 0).applyQuaternion(this.flipTarget); }
   get inverted() { return this.weight < 0; }
@@ -172,18 +172,60 @@ export class Player {
       vy = 1.2; this.jumpBuffer = 0;
     }
 
-    // platform carry
+    // Platform carry. Kinematic platforms (lifts, doors) report their velocity.
+    // A weighted crate under us is "ridden": we integrate the crate + rider system
+    // ourselves (combined weight decides up or down) and follow its exact displacement.
     const plat = new THREE.Vector3();
+    const platDisp = new THREE.Vector3();
+    let rideOwner = null;
+    let vUpOverride = false;
     if (this.grounded && this.groundCollider) {
       const pb = this.groundCollider.parent();
-      if (pb && (pb.isKinematic() || pb.isDynamic())) {
-        const lv = pb.linvel();
-        plat.set(lv.x, lv.y, lv.z);
+      const info = this.phys.infoOf(this.groundCollider);
+      if (pb && pb.isKinematic()) {
+        const lv = pb.linvel(); plat.set(lv.x, lv.y, lv.z);
+      } else if (pb && pb.isDynamic() && info?.owner?.weighted && !info.owner.held) rideOwner = info.owner;
+    }
+    // stay on a crate we're riding even if the controller momentarily loses contact
+    if (!rideOwner && this.riding && this.riding.body && !this.riding.held && this.jumpBuffer <= 0) {
+      const t = this.riding.body.translation();
+      const feetY = this.pos.y - (HALF + RADIUS) * sgn;
+      const gap = (feetY - (t.y + this.rideOffset)) * sgn;
+      const half = (this.riding.size || 0.7) / 2 + 0.25;
+      if (gap > -0.06 && gap < 0.12 && Math.abs(this.pos.x - t.x) < half && Math.abs(this.pos.z - t.z) < half) {
+        rideOwner = this.riding;
+        this.grounded = true;
+        this.groundCollider = this.riding.collider;
       }
     }
+    if (this.riding && this.riding !== rideOwner) {
+      this.riding.ridden = false;
+      if (!this.riding.held && this.riding.collider) this.riding.collider.setCollisionGroups(GROUPS.dynamic);
+      this.riding.applyGravity(); this.riding = null;
+    }
+    if (rideOwner) {
+      const b = rideOwner.body;
+      const t = b.translation();
+      const feetY = this.pos.y - (HALF + RADIUS) * sgn;
+      if (this.riding !== rideOwner) {
+        this.riding = rideOwner; rideOwner.ridden = true; rideOwner.applyGravity(); this.rideOffset = feetY - t.y;
+        rideOwner.collider.setCollisionGroups(GROUPS.ridden);
+      }
+      const lv = b.linvel();
+      const aUp = -(G / 2) * (rideOwner.weight + wEff);
+      const vy = Math.max(-12, Math.min(3.2, lv.y + aUp * dt));
+      const hd = rideOwner.inBrine ? 0.995 : 0.85;
+      const vx = lv.x * hd, vz = lv.z * hd;
+      b.setLinvel({ x: vx, y: vy, z: vz }, true);
+      b.setAngvel({ x: 0, y: b.angvel().y * 0.9, z: 0 }, true);
+      // lead: put our feet where the crate's top will be after this step
+      platDisp.set(vx * dt, (t.y + vy * dt + this.rideOffset) - feetY, vz * dt);
+      if (vy > 0) vUpOverride = true;
+    }
 
+    if (rideOwner && vy <= 0) vy = 0;   // standing on a ridden crate: it carries us vertically
     const vel = hor.clone().addScaledVector(upv, vy);
-    const move = vel.clone().multiplyScalar(dt).addScaledVector(plat, dt);
+    const move = vel.clone().multiplyScalar(dt).addScaledVector(plat, dt).add(platDisp);
 
     if (this.noclip) {
       const f = this.forwardWorld(new THREE.Vector3());
@@ -203,8 +245,8 @@ export class Player {
       return true;
     };
     // snap only when not moving away from the ground
-    this.cc.enableSnapToGround(vy > 0.5 ? 0.0 : 0.28);
-    this.cc.computeColliderMovement(this.collider, { x: move.x, y: move.y, z: move.z }, R.QueryFilterFlags.EXCLUDE_SENSORS, GROUPS.player, filter);
+    this.cc.enableSnapToGround(vy > 0.5 || vUpOverride ? 0.0 : 0.28);
+    this.cc.computeColliderMovement(this.collider, { x: move.x, y: move.y, z: move.z }, R.QueryFilterFlags.EXCLUDE_SENSORS, GROUPS.kcc, filter);
     const m = this.cc.computedMovement();
     const wasGrounded = this.grounded;
     this.grounded = this.cc.computedGrounded();
@@ -235,6 +277,14 @@ export class Player {
     if (this.grounded && !this.groundCollider) this.groundCollider = this.probeGround();
     this.groundInfo = this.groundCollider ? this.phys.infoOf(this.groundCollider) : null;
 
+    // if we were stopped (a ceiling over our head), the crate under us stops too
+    if (rideOwner && this.riding === rideOwner) {
+      const want = platDisp.y, got = m.y;
+      if (want > 0 && got < want - 0.002) {
+        const lv = rideOwner.body.linvel();
+        rideOwner.body.setLinvel({ x: lv.x, y: Math.max(0, got) / dt, z: lv.z }, true);
+      }
+    }
     const np = this.body.translation();
     const next = { x: np.x + m.x, y: np.y + m.y, z: np.z + m.z };
     this.body.setNextKinematicTranslation(next);
@@ -248,8 +298,8 @@ export class Player {
     if (realH.length() < hor.length()) hor.copy(realH);
     this.vel.copy(hor).addScaledVector(upv, vy);
 
-    // press down on whatever dynamic body we stand on
-    if (this.grounded && this.groundCollider) {
+    // press down on whatever dynamic body we stand on (a ridden crate is handled above)
+    if (this.grounded && this.groundCollider && !this.riding) {
       const gb = this.groundCollider.parent();
       if (gb && gb.isDynamic() && wEff !== 0) {
         const imp = UNIT_MASS * G * wEff / 2 * dt;
@@ -287,7 +337,7 @@ export class Player {
   probeGround() {
     const upv = this.up;
     const from = this.pos.clone().addScaledVector(upv, -(HALF));
-    const hit = this.phys.raycast(from, upv.clone().negate(), RADIUS + 0.12, { filter: GROUPS.player, exclude: this.collider });
+    const hit = this.phys.raycast(from, upv.clone().negate(), RADIUS + 0.12, { filter: GROUPS.kcc, exclude: this.collider });
     return hit ? hit.collider : null;
   }
 

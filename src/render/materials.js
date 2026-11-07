@@ -33,6 +33,8 @@ export const PRESETS = {
   concrete_wet: { type: 'concrete', tint: '#7a766e', seed: 4 },
   slab: { type: 'slab', tint: '#8f8b84' },
   slab_dark: { type: 'slab', tint: '#6b6863', seed: 2 },
+  slab_ext: { type: 'slab', tint: '#7e7a72', seed: 5, wet: 1, grime: 1.2 },
+  concrete_ext: { type: 'concrete', tint: '#8a857b', seed: 6, wet: 1 },
   lino_oxblood: { type: 'lino', tint: '#7a3b2d', tint2: '#9a5a40' },
   lino_green: { type: 'lino', tint: '#55705a', tint2: '#78907a', seed: 2 },
   lino_ochre: { type: 'lino', tint: '#a8823f', tint2: '#c49d58', seed: 3 },
@@ -40,7 +42,7 @@ export const PRESETS = {
   planks_oak: { type: 'planks', tint: '#a07a4e' },
   planks_dark: { type: 'planks', tint: '#6b4b2e', seed: 2 },
   planks_grey: { type: 'planks', tint: '#7d766b', seed: 3 },
-  veneer_oak: { type: 'veneer', tint: '#946d44' },
+  veneer_oak: { type: 'veneer', tint: '#a8804f' },
   veneer_walnut: { type: 'veneer', tint: '#5e4029', seed: 2 },
   paint_green: { type: 'paint', tint: '#4b6a57', param: 0.4 },
   paint_sage: { type: 'paint', tint: '#8d9f86', param: 0.3, seed: 2 },
@@ -132,7 +134,7 @@ float tGrimeR = 0.0; float tWetR = 0.0;
     g = fd * 0.35 * gAmt;
     float pud = smoothstep(0.58, 0.64, tare_f3(vTWPos * vec3(0.7, 0.0, 0.7) + 11.0)) * uWet * uWetAmt;
     tWetR = pud;
-    diffuseColor.rgb *= 1.0 - pud * 0.35;
+    diffuseColor.rgb *= 1.0 - pud * 0.12;
   }
   diffuseColor.rgb *= 1.0 - g * 0.45;
   diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.92, 0.88, 0.80), g * 0.6);
@@ -171,7 +173,7 @@ export class Materials {
     mat.userData.history = {
       uMacro: { value: spec.macro ?? 0.16 },
       uGrime: { value: spec.grime ?? 1 },
-      uWetAmt: { value: spec.wet ?? 1 },
+      uWetAmt: { value: spec.wet ?? 0 },
     };
     mat.onBeforeCompile = shader => injectHistory(shader, mat);
     mat.customProgramCacheKey = () => 'tare-history';
