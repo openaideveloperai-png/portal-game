@@ -4,17 +4,17 @@ import * as THREE from 'three';
 import { rng } from '../core/util.js';
 import { audio } from '../core/audio.js';
 
-export function buildExterior(L, { rainBox = null, water = -14, town = true, mountains = true, moon = true, rain = true, waterExtent = 900, seed = 3, townDir = 1 } = {}) {
+export function buildExterior(L, { rainBox = null, water = -14, town = true, mountains = true, moon = true, rain = true, waterExtent = 900, seed = 3, townDir = 1, dawn = false } = {}) {
   const root = new THREE.Group();
   L.root.add(root);
   const out = { root };
   // sky dome
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { uTime: { value: 0 }, uFlash: { value: 0 } },
+    uniforms: { uTime: { value: 0 }, uFlash: { value: 0 }, uDawn: { value: dawn ? 1 : 0 } },
     vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * p; gl_Position.z = gl_Position.w; }',
     fragmentShader: `
-      uniform float uTime, uFlash; varying vec3 vDir;
+      uniform float uTime, uFlash, uDawn; varying vec3 vDir;
       float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f); return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
       float fbm(vec2 p){ float s = 0., a = .5; for (int i = 0; i < 5; i++) { s += a * n(p); p *= 2.03; a *= .5; } return s; }
@@ -32,6 +32,13 @@ export function buildExterior(L, { rainBox = null, water = -14, town = true, mou
         c += vec3(0.05, 0.05, 0.055) * pow(m, 6.0);
         c = mix(c, vec3(0.06, 0.055, 0.05), smoothstep(0.05, -0.2, y));
         c += uFlash * vec3(0.5, 0.52, 0.6) * (0.4 + mask);
+        // dawn: a cold clear sky warming at the eastern horizon
+        vec3 dz = mix(vec3(0.62, 0.55, 0.50), vec3(0.30, 0.38, 0.48), smoothstep(-0.02, 0.5, y));
+        float east = pow(max(dot(normalize(vDir.xz + 1e-4), normalize(vec2(1.0, 0.25))), 0.0), 3.0);
+        dz += vec3(0.55, 0.30, 0.12) * east * (1.0 - smoothstep(0.0, 0.35, y));
+        dz = mix(dz, vec3(0.70, 0.66, 0.62), mask * 0.35);
+        dz = mix(dz, vec3(0.20, 0.19, 0.18), smoothstep(0.05, -0.2, y));
+        c = mix(c, dz, uDawn);
         gl_FragColor = vec4(c, 1.0);
       }`,
   });
@@ -54,7 +61,7 @@ export function buildExterior(L, { rainBox = null, water = -14, town = true, mou
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: '#0a0c0e', side: THREE.DoubleSide, fog: false }));
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: dawn ? '#3a4048' : '#0a0c0e', side: THREE.DoubleSide, fog: false }));
     m.frustumCulled = false;
     root.add(m);
   }

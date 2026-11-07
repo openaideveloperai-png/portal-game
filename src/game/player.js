@@ -107,7 +107,7 @@ export class Player {
 
   teleport(pos, yaw = null) {
     if (!this.body) return;
-    const p = { x: pos[0], y: pos[1] + (this.inverted ? -(HALF + RADIUS + 0.02) : HALF + RADIUS + 0.02), z: pos[2] };
+    const p = { x: pos[0], y: pos[1] + (this.weight < 0 ? -(HALF + RADIUS + 0.02) : HALF + RADIUS + 0.02), z: pos[2] };
     this.body.setTranslation(p, true);
     this.body.setNextKinematicTranslation(p);
     this.pos.set(p.x, p.y, p.z); this.prevPos.copy(this.pos); this.renderPos.copy(this.pos);
@@ -145,11 +145,18 @@ export class Player {
     // split current velocity into vertical (along up) and horizontal
     const vUp = this.vel.dot(upv);
     const hor = this.vel.clone().addScaledVector(upv, -vUp);
-    const accel = this.grounded ? 55 : (this.weight === 0 ? 6 : 14);
-    const dv = wish.clone().sub(hor);
-    const maxDv = accel * dt;
-    if (dv.length() > maxDv) dv.setLength(maxDv);
-    hor.add(dv);
+    if (this.grounded) {
+      const dv = wish.clone().sub(hor);
+      const maxDv = 55 * dt;
+      if (dv.length() > maxDv) dv.setLength(maxDv);
+      hor.add(dv);
+    } else if (wish.lengthSq() > 0.01) {
+      // air control: steer, but never brake a launch or a fall
+      const wd = wish.clone().normalize();
+      const along = hor.dot(wd);
+      const add = Math.max(0, Math.min((this.weight === 0 ? 6 : 14) * dt, wish.length() - along));
+      hor.addScaledVector(wd, add);
+    }
 
     // --- vertical
     let vy = vUp;
@@ -330,7 +337,7 @@ export class Player {
     // remember last safe standing place for respawns
     if (this.grounded && this.groundInfo && this.groundInfo.kind === 'static' && !this.groundInfo.unsafe) {
       this.safeT = (this.safeT || 0) + dt;
-      if (this.safeT > 0.5) { this.safeT = 0; const f = this.feet(new THREE.Vector3()); this.lastSafe = { pos: [f.x, f.y, f.z], yaw: this.yaw }; }
+      if (this.safeT > 0.5) { this.safeT = 0; const f = this.feet(new THREE.Vector3()); this.lastSafe = { pos: [f.x, f.y, f.z], yaw: this.yaw, weight: this.weight }; }
     }
   }
 

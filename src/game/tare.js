@@ -156,7 +156,7 @@ export class Tare {
     const info = hit.info || {};
     const o = info.owner;
     const t = { point: hit.point, dist: hit.dist, collider: hit.collider, info };
-    if (info.kind === 'boothDial' && o && o.contains(p.feet(V()))) return { ...t, kind: 'self', obj: p, booth: o };
+    if (info.kind === 'boothDial' && o && o.contains(o.post ? p.pos.clone() : p.feet(V()))) return { ...t, kind: 'self', obj: p, booth: o };
     if (o && o.weighted) return { ...t, kind: 'weighted', obj: o };
     if (o && o.interact && hit.dist < REACH + 0.4) return { ...t, kind: 'interact', obj: o };
     return { ...t, kind: 'none', obj: null };

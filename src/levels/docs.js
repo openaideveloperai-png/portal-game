@@ -125,6 +125,52 @@ export const DOCS = {
       'It is so nearly light enough. One more house. One more measure. There is always one more measure.',
     ],
   },
+  boothPermit: {
+    id: 'boothPermit', title: 'Self-tare permit', dept: 'Kalden \u00b7 Office of the Senior Weigher',
+    meta: [['Holder', 'E. Lind (Bureau)'], ['Range', 'As stamped on each booth'], ['Issued by', 'T. Brask, without authority']],
+    body: [
+      'The holder may be drawn from and given to at any self-tare station of the Institute, within the range stamped on the station.',
+      'The holder is reminded that a person below zero falls upward, that a person at zero does not fall at all, and that neither condition excuses lateness.',
+      { hand: 'Lighter jumps higher. Heavier presses harder. Below nothing, look up. \u2014 T.' },
+    ],
+    stamps: [{ text: 'Unofficial', right: 40, top: 70, rot: -8, violet: true }],
+  },
+  turbineLog: {
+    id: 'turbineLog', title: 'Turbine hall log', dept: 'Kalden \u00b7 Power Station',
+    body: [
+      { head: ['Date', 'Gen.', 'Entry'], table: [['12.III.71', '1', 'Shut down. Foundation readings.'], ['12.III.71', '2', 'Shut down. Same.'], ['30.IV.71', '3', 'Shut down by order of the Director'], ['', '', '']] },
+      'Power to Nedre Kalden now supplied from the regional grid. The Ministry has not asked why.',
+    ],
+  },
+  engineerLetter: {
+    id: 'engineerLetter', title: 'Letter from the dam engineers, 1979', org: 'Ministry of Water and Power', dept: 'Directorate of Dams \u00b7 Structural Section',
+    meta: [['To', 'The Director, State Institute of Ponderal Measures'], ['Date', '19 July 1979']],
+    body: [
+      'Foundation pressure cells at the Kalden Dam report loads one hundred and fifty per cent of design. Crack gauges in the gallery have opened by eleven millimetres since January.',
+      'If the Institute is storing anything in the structure of the dam, we must ask that it be removed. If it is not, we must ask what it is.',
+      'Our models do not converge. In plain words: we do not know why the dam is still standing.',
+    ],
+    stamps: [{ text: 'Filed', right: 60, top: 60, rot: -12 }],
+  },
+  vaultOrder: {
+    id: 'vaultOrder', title: 'Standing order: the Great Balance', dept: 'Kalden \u00b7 Office of the Director',
+    body: [
+      'The Great Balance connects the vault and the Halde account. Should its pans ever stand level, every measure held in the vault is returned to the account it was drawn from.',
+      'The pans are not to be levelled.',
+      { hand: 'Unless I am wrong. If I am wrong, level them. \u2014 O.V.' },
+    ],
+  },
+  finalReport: {
+    id: 'finalReport', title: 'Audit report, Kalden', org: 'State Audit Bureau', dept: 'Directorate of Physical Assets \u00b7 Section 7',
+    meta: [['Auditor', 'E. Lind, Third Class'], ['Subject', 'State Institute of Ponderal Measures, Kalden'], ['Date', '3 November 1979']],
+    body: [
+      { head: ['Account', 'Opening', 'Closing'], table: [['Stock', '1 204', '1 204'], ['Calibration', '318', '318'], ['Loans', '96', '96'], ['7 \u2014 Halde', '41 212 t', '0']] },
+      'Discrepancies: none remaining. All measures drawn from the Halde account have been returned to it.',
+      'Remarks: the village is where it was left in 1949. The dam is resting. I recommend no further action against the Institute, and that somebody fix the coffee machine.',
+    ],
+    sig: 'E. Lind', sigName: 'Auditor Third Class',
+    stamps: [{ text: 'Balanced', right: 46, top: 64, rot: -9 }],
+  },
   photoOpening: {
     id: 'photoOpening', kind: 'photo', title: 'Photograph: the opening, 1951',
     get image() { return photoDataURL('opening'); },

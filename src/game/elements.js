@@ -718,10 +718,11 @@ export class Brine extends Element {
 
 // ---------------------------------------------------------------- self-tare booth
 export class Booth extends Element {
-  constructor(L, { pos, rotY = 0, range = [1, 4], name = null }) {
+  constructor(L, { pos, rotY = 0, range = [1, 4], name = null, post = false, hang = false, radius = 2.1 }) {
     super(L);
     this.kind = 'booth';
     this.pos = pos; this.rotY = rotY; this.range = range;
+    if (post) { this.buildPost(L, { hang, radius }); if (name) L.named[name] = this; return; }
     const W = 1.2, D = 1.2, H = 2.5;
     const p = pos;
     // walls: back + sides in veneer with glass upper panes; front open
@@ -751,13 +752,28 @@ export class Booth extends Element {
     void lamp;
     if (name) L.named[name] = this;
   }
+  // a simpler self-tare station: a dial on a post (or hanging from a ceiling)
+  buildPost(L, { hang, radius }) {
+    this.post = true; this.radius = radius; this.hang = hang;
+    const p = this.pos, s = hang ? -1 : 1;
+    L.props.cyl(p, 0, [0, s * 0.7, 0], 0.05, 0.07, 1.4, 'paint_black', { seg: 12 });
+    L.props.cyl(p, 0, [0, 0, 0], 0.2, 0.24, 0.05, 'paint_black', { seg: 18 });
+    const dp = [p[0], p[1] + s * 1.45, p[2]];
+    this.dial = new Dial(L, { pos: [dp[0], dp[1] - 0.12, dp[2]], rotY: this.rotY, tilt: hang ? 0.25 : -0.2, min: -4, max: 6, label: 'YOUR WEIGHT', post: 0, r: 0.17 });
+    if (hang) { this.dial.object.rotation.z = Math.PI; this.dial.object.position.y = dp[1] + 0.12; }
+    this.dialCol = L.phys.fixedCollider(R.ColliderDesc.cuboid(0.22, 0.22, 0.22).setTranslation(dp[0], dp[1], dp[2]), { kind: 'boothDial', owner: this }, GROUPS.rayOnly);
+    const plaque = signTexture(['SELF-TARE', `${this.range[0] < 0 ? '\u2212' + -this.range[0] : this.range[0]} TO ${this.range[1]}`], { style: 'plate', bg: '#b89a5a', fg: '#2a2218', w: 512, h: 160 });
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.11), new THREE.MeshStandardMaterial({ map: plaque, metalness: 0.7, roughness: 0.35, side: THREE.DoubleSide }));
+    pl.position.set(p[0], p[1] + s * 1.0, p[2] + 0.075); if (hang) pl.rotation.z = Math.PI; L.root.add(pl);
+  }
   contains(pt) {
+    if (this.post) return pt.distanceTo(V(...this.pos)) < this.radius;
     const l = pt.clone().sub(V(...this.pos)).applyAxisAngle(UP, -this.rotY);
     return Math.abs(l.x) < 0.6 && Math.abs(l.z) < 0.6 && l.y > -0.5 && l.y < 2.6;
   }
   update(dt) {
     const p = this.game.player;
-    const inside = this.contains(p.feet(V()));
+    const inside = this.contains(this.post ? p.pos.clone() : p.feet(V()));
     this.dial.set(inside ? p.weight : 0, inside);
     this.dial.update(dt);
   }
@@ -1175,5 +1191,66 @@ export class Twins extends Element {
       audio.play('tick', { when: 0.08, pos: hi.position() });
       this.game.tare.fx(true, { kind: 'weighted', obj: lo, point: lo.position() });
     }
+  }
+}
+
+// ---------------------------------------------------------------- a house of Halde, floating on its chain
+// Height follows weight: h = base - step * w (clamped). Walkable stone floor + a small house.
+export class House extends Weighted {
+  constructor(L, { pos, weight = 0, base = 4, step = 2, min = 0, max = 16, size = [3.2, 3.2], rotY = 0, style = 0, name = 'house' }) {
+    super(L, { weight, name, carriable: false, min: -8, max: 4 });
+    L.weighted.push(this); L.entities.push(this);
+    this.fixed = true; this.kind = 'house';
+    this.p0 = pos; this.base = base; this.step = step; this.hmin = min; this.hmax = max;
+    this.h = this.target(); this.v = 0;
+    const [w, d] = size;
+    const g = new THREE.Group();
+    const mats = L.game.engine.materials;
+    const floor = new THREE.Mesh(boxGeom([-w / 2, -0.6, -d / 2], [w / 2, 0, d / 2], { bevel: 0.03, grime: false }), mats.get('stone'));
+    floor.castShadow = floor.receiveShadow = true; g.add(floor);
+    // the cottage on the back half: whitewashed walls, a tiled roof, a dark doorway
+    const hw = w * 0.9, hd = d * 0.45, hh = 2.1;
+    const walls = new THREE.Mesh(boxGeom([-hw / 2, 0, -d / 2 + 0.05], [hw / 2, hh, -d / 2 + 0.05 + hd], { bevel: 0.02, grime: [0, hh] }), mats.get(['render_white', 'render_ochre', 'render_rose'][style % 3]));
+    walls.castShadow = walls.receiveShadow = true; g.add(walls);
+    const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, hd * 0.85, hw * 1.08, 3, 1), mats.get('rooftiles'));
+    roof.rotation.z = Math.PI / 2; roof.position.set(0, hh + hd * 0.32, -d / 2 + 0.05 + hd / 2); roof.scale.set(1, 1, 1.25); roof.castShadow = true; g.add(roof);
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.6), mats.plain('#141210', { rough: 1 }));
+    door.position.set(0, 0.8, -d / 2 + 0.05 + hd + 0.005); g.add(door);
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), mats.plain('#1a1d1d', { rough: 0.2 }));
+    win.position.set(hw * 0.3, 1.4, -d / 2 + 0.05 + hd + 0.005); g.add(win);
+    // the chain below and a weight sign on the floor edge
+    this.chain = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1, 6), mats.get('rust'));
+    L.root.add(this.chain);
+    for (const f of [0, 1]) { const dr = new Drum(0.26); dr.mesh.position.set(f ? -w / 2 - 0.004 : w / 2 + 0.004, -0.3, d * 0.25); dr.mesh.rotation.y = f ? -Math.PI / 2 : Math.PI / 2; g.add(dr.mesh); dr.set(weight); this.drums.push(dr); }
+    g.rotation.y = rotY;
+    this.object = g;
+    L.root.add(g);
+    this.body = null;
+    const q = new THREE.Quaternion().setFromAxisAngle(UP, rotY);
+    this.kb = L.phys.kinematicBody([pos[0], this.h, pos[2]], rq(q));
+    this.collider = L.phys.attach(R.ColliderDesc.cuboid(w / 2, 0.3, d / 2).setTranslation(0, -0.3, 0), this.kb, { kind: 'static', owner: this, surface: 'stone' }, GROUPS.static);
+    L.phys.attach(R.ColliderDesc.cuboid(hw / 2, hh / 2, hd / 2).setTranslation(0, hh / 2, -d / 2 + 0.05 + hd / 2), this.kb, { kind: 'static', owner: this, surface: 'stone' }, GROUPS.static);
+    this.size = Math.max(w, d);
+    this.sync();
+  }
+  target() { return Math.max(this.hmin, Math.min(this.hmax, this.base - this.step * this.weight)); }
+  position(out = new THREE.Vector3()) { return out.set(this.p0[0], this.h - 0.3, this.p0[2]); }
+  fixedUpdate(dt) {
+    const t = this.target();
+    const d = t - this.h;
+    this.v += Math.max(-1.6 * dt, Math.min(1.6 * dt, Math.sign(d) * Math.min(1.4, Math.abs(d) * 1.2) - this.v));
+    if (Math.abs(d) < 0.01) { this.v = 0; this.h = t; } else this.h += this.v * dt;
+    this.sync();
+  }
+  sync() {
+    this.kb.setNextKinematicTranslation({ x: this.p0[0], y: this.h, z: this.p0[2] });
+  }
+  update(dt) {
+    this.shake = Math.max(0, this.shake - dt);
+    this.object.position.set(this.p0[0], this.h + Math.sin(performance.now() / 1300 + this.p0[0]) * 0.015, this.p0[2]);
+    const top = this.h - 0.6, bot = this.p0[1];
+    this.chain.scale.y = Math.max(0.01, top - bot);
+    this.chain.position.set(this.p0[0], (top + bot) / 2, this.p0[2]);
+    this.updateDrums(dt);
   }
 }

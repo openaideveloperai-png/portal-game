@@ -6,7 +6,7 @@ import { boxGeom, splitWall, StaticBatch } from '../render/geometry.js';
 import { Props } from '../render/props.js';
 import { WORLD } from '../render/materials.js';
 import { Crate, Anchor } from './weights.js';
-import { Plate, Door, Wire, Lift, Vent, Glass, Brine, Booth, Hopper, Button, Lever, Launcher, Note, Trigger, Cage, Dial, Twins, cond } from './elements.js';
+import { Plate, Door, Wire, Lift, Vent, Glass, Brine, Booth, Hopper, Button, Lever, Launcher, Note, Trigger, Cage, Dial, Twins, House, cond } from './elements.js';
 import { hashString, rng, clamp } from '../core/util.js';
 import { audio } from '../core/audio.js';
 import { FONTS, INK } from '../render/signs.js';
@@ -241,6 +241,7 @@ export class Level {
   lever(o) { return new Lever(this, o); }
   launcher(o) { return new Launcher(this, o); }
   twins(a, b, o = {}) { return new Twins(this, { a, b, ...o }); }
+  house(o) { return new House(this, o); }
   note(o) { return new Note(this, o); }
   trigger(o) { return new Trigger(this, o); }
   dial(o) { const d = new Dial(this, o); this.updaters.push(dt => d.update(dt)); return d; }

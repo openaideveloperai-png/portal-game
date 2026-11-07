@@ -245,6 +245,7 @@ export class Game {
     this.player.frozen = true;
     await this.ui.fade(1, 450);
     const s = this.player.lastSafe || { pos: this.level.spawn.pos, yaw: this.level.spawn.yaw };
+    if (s.weight !== undefined && s.weight !== this.player.weight) this.player.setWeight(s.weight, true);
     this.player.teleport(s.pos, s.yaw);
     this.player.frozen = false;
     if (cause === 'brine') this.ui.flash('The brine is very cold. You climb back out.', 2600);
@@ -269,7 +270,7 @@ export class Game {
       if (this.restartHold > 1.3) { this.restartHold = -10; this.restartChamber(); }
     } else if (!this.input.isDown('KeyR')) this.restartHold = 0;
     // fell out of the world
-    if (this.player.body && this.player.pos.y < this.level.killY && !this.dying) this.playerDied('fall');
+    if (this.player.body && !this.dying && (this.player.pos.y < this.level.killY || this.player.pos.y > (this.level.killYTop ?? 1e9))) this.playerDied('fall');
     this.input.pressed.clear(); this.input.released.clear();
   }
 
@@ -345,7 +346,12 @@ export class Game {
       async goto(i) { g.ui.hideTitle(true); g.ui.closeForm(); await g.loadLevel(i); g.state = 'playing'; g.ui.showHud(true); g.ui.fade(0, 10); return g.level.id; },
       teleport(x, y, z, yaw = null) { g.player.teleport([x, y, z], yaw); },
       look(yaw, pitch = 0) { g.player.yaw = yaw; g.player.pitch = pitch; },
-      lookAt(x, y, z) { const e = g.player.eyeNow(V()); const d = V(x, y, z).sub(e); g.player.yaw = Math.atan2(-d.x, -d.z); g.player.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)); },
+      lookAt(x, y, z) {
+        const e = g.player.eyeNow(V());
+        const d = V(x, y, z).sub(e).applyQuaternion(g.player.flipTarget.clone().invert());
+        g.player.flip.copy(g.player.flipTarget);
+        g.player.yaw = Math.atan2(-d.x, -d.z); g.player.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
+      },
       aim() { g.tare.target = g.tare.aim(); const t = g.tare.target; return t ? { kind: t.kind, name: t.obj?.label || t.obj?.name, weight: t.obj?.weight, dist: +t.dist.toFixed(2) } : null; },
       draw() { g.tare.target = g.tare.aim(); g.tare.draw(); return g.tare.stored; },
       give() { g.tare.target = g.tare.aim(); g.tare.give(); return g.tare.stored; },
@@ -363,6 +369,8 @@ export class Game {
       async simulate(sec) { const n = Math.round(sec * 60); for (let i = 0; i < n; i++) { g.fixed(1 / 60); g.level.update(1 / 60); g.story.tick(1 / 60); for (let k = 0; k < 6; k++) await null; } return g.level.id; },
       place(i, x, y, z) { const w = g.level.weighted[i]; w.body.setTranslation({ x, y, z }, true); w.body.setLinvel({ x: 0, y: 0, z: 0 }, true); w.body.setAngvel({ x: 0, y: 0, z: 0 }, true); },
       setW(i, v) { g.level.weighted[i].setWeight(v); },
+      // press jump on the next fixed step and report the highest point reached
+      async jumpHeight(sec = 2.5) { const y0 = g.player.feet(new THREE.Vector3()).y; g.input.pressed.add('Space'); let top = y0; const n = Math.round(sec * 60); for (let i = 0; i < n; i++) { g.fixed(1 / 60); g.level.update(1 / 60); top = Math.max(top, g.player.feet(new THREE.Vector3()).y); for (let k = 0; k < 4; k++) await null; } return +(top - y0).toFixed(2); },
       named(n) { return g.level.named[n]; },
       cageOpen() { return g.level.exitCage ? +g.level.exitCage.open.toFixed(2) : null; },
     };
