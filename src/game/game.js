@@ -8,6 +8,8 @@ import { Player } from './player.js';
 import { Tare } from './tare.js';
 import { Story } from './story.js';
 import { Characters } from './characters.js';
+import { renderPhoto } from './photostudio.js';
+import { setPhotoStudio, prerenderPhotos, photoDataURL } from '../levels/photos.js';
 import { LEVELS } from '../levels/index.js';
 import { saveSettings } from '../core/save.js';
 import { wait, nextFrame, clamp } from '../core/util.js';
@@ -62,6 +64,11 @@ export class Game {
       this.ui.loadingError('Some character files could not be loaded. The game will continue without people.');
     }
     try { if (this.characters.ready) this.tare.attachHand(this.characters.viewArm()); } catch (e) { console.warn('view arm', e); }
+    if (this.characters.ready) {
+      setPhotoStudio(kind => renderPhoto(this, kind));
+      // develop the three photographs while the title is up, so opening one later is instant
+      if (!/[?&]nophotos/.test(location.search)) setTimeout(() => { try { prerenderPhotos(); } catch (e) { console.warn('photos', e); } }, 3000);
+    }
     this.ui.setLoading(0.85, 'Opening the ledgers…');
     await document.fonts?.ready;
     this.engine.start();
@@ -358,6 +365,7 @@ export class Game {
       give() { g.tare.target = g.tare.aim(); g.tare.give(); return g.tare.stored; },
       use() { g.tare.target = g.tare.aim(); g.tare.interact(); return !!g.tare.held; },
       named(n) { return g.level.named[n]; },
+      photo(kind) { return photoDataURL(kind); },
       weights() { return g.level.weighted.map(w => ({ name: w.name, w: w.weight, p: w.position().toArray().map(v => +v.toFixed(2)) })); },
       plates() { return g.level.entities.filter(e => e.kind === 'plate').map(p => ({ need: p.need, load: p.load, on: p.pressed })); },
       doors() { return g.level.entities.filter(e => e.kind === 'door').map(d => +d.open.toFixed(2)); },
@@ -373,6 +381,7 @@ export class Game {
       // press jump on the next fixed step and report the highest point reached
       async jumpHeight(sec = 2.5) { const y0 = g.player.feet(new THREE.Vector3()).y; g.input.pressed.add('Space'); let top = y0; const n = Math.round(sec * 60); for (let i = 0; i < n; i++) { g.fixed(1 / 60); g.level.update(1 / 60); top = Math.max(top, g.player.feet(new THREE.Vector3()).y); for (let k = 0; k < 4; k++) await null; } return +(top - y0).toFixed(2); },
       named(n) { return g.level.named[n]; },
+      photo(kind) { return photoDataURL(kind); },
       cageOpen() { return g.level.exitCage ? +g.level.exitCage.open.toFixed(2) : null; },
     };
   }

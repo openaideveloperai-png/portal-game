@@ -47,6 +47,11 @@ export const OUTFITS = {
   // a 1940s villager (photographs of Halde)
   village_f: { top: '#3a3430', topKind: 0, sleeves: 'long', bottom: '#3a3430', dress: true, apron: '#cfc6b0', legs: '#4a403a', shoes: '#1f1a17', buttons: true, collar: 1 },
   village_m: { top: '#d8cfba', topKind: 1, sleeves: 'rolled', vest: '#2f2c2a', bottom: '#3d3833', shoes: '#241e19', belt: '#2b1d14', buttons: true, collar: 0 },
+  // Agnes Varga, 1947: dark dress, stockings, a work apron
+  agnes: { top: '#34302d', topKind: 0, sleeves: 'long', bottom: '#34302d', dress: true, apron: '#9d9584', legs: '#3f3733', shoes: '#1f1a17', buttons: true, collar: 1 },
+  // Ministry people at the opening, 1951: dark overcoats
+  official: { top: '#2b2b2f', topKind: 2, sleeves: 'long', coat: true, under: '#1d1d21', bottom: '#29292d', shoes: '#151312', buttons: true, collar: 1, pocket: true },
+  official_f: { top: '#3a393e', topKind: 2, sleeves: 'long', coat: true, under: '#26252a', bottom: '#2c2b30', legs: '#4a403a', shoes: '#1a1716', buttons: true, collar: 1 },
   // the auditor's sleeve and glove (first-person)
   auditor: { top: '#323a48', topKind: 0, sleeves: 'long', coat: true, bottom: '#2c3340', shoes: '#1d1a18', gloves: '#7a5638', buttons: false, collar: 1 },
 };
@@ -323,10 +328,30 @@ export class Characters {
       });
     }
     if (spec.glasses) this.addGlasses(bones.Head, lm, spec);
-    if (OUTFITS[spec.outfit]?.coat && spec.coatTails !== false) this.addCoatTails(body, bones, lm, spec);
+    const of = OUTFITS[spec.outfit];
+    if (of?.coat && spec.coatTails !== false) this.addCoatTails(body, bones, lm, spec);
+    else if (of?.dress) {
+      // a mid-calf skirt, and the apron over its front
+      this.addCoatTails(body, bones, lm, spec, { a0: -Math.PI, a1: Math.PI, top: lm.waist + 0.04, bot: lm.knee - 0.17, color: of.bottom, extra: 0.02, flare: 0.08 });
+      if (of.apron) this.addCoatTails(body, bones, lm, spec, { a0: -0.68, a1: 0.68, top: lm.waist + 0.03, bot: lm.knee - 0.07, color: of.apron, extra: 0.034, flare: 0.08 });
+    }
     root.scale.setScalar(spec.scale || 1);
     const mixer = new THREE.AnimationMixer(root);
     return { root, body, bones, mixer, spec, lm };
+  }
+
+  // Release a person built only for a moment (the photographs): their baked outfit and
+  // the cloth and spectacles made for them. Shared hair and body sources are left alone.
+  forget(human) {
+    const key = JSON.stringify(human.spec);
+    const b = this.bakeCache.get(key);
+    if (b) {
+      this.bakeCache.delete(key);
+      b.geometry.dispose();
+      for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap']) b.material[k]?.dispose?.();
+      b.material.dispose();
+    }
+    human.root.traverse(o => { if (o.userData.ownGeometry) o.geometry.dispose(); });
   }
 
   hairMaterial(src, color, grey) {
@@ -526,16 +551,17 @@ export class Characters {
     // the cloned skeleton's world matrix is the rest pose at this point
     const local = inv.multiply(world);
     g.applyMatrix4(local);
-    g.traverse(o => { o.castShadow = false; });
+    g.traverse(o => { o.castShadow = false; if (o.isMesh) o.userData.ownGeometry = true; });
     head.add(g);
   }
 
   // Long coat tails from waist to knee, skinned to pelvis + thighs so they swing.
-  addCoatTails(body, bones, lm, spec) {
+  // Cloth hanging from the waist, skinned to pelvis and thighs: open-fronted coat tails by
+  // default; with options, a closed skirt for a dress or an apron panel over it.
+  addCoatTails(body, bones, lm, spec, { a0 = null, a1 = null, top = lm.waist + 0.07, bot = lm.knee - 0.02, color = null, extra = 0.022, flare = 0.03 } = {}) {
     const outfit = OUTFITS[spec.outfit];
     const pos = body.geometry.attributes.position;
     const rings = 7, seg = 36;
-    const top = lm.waist + 0.07, bot = lm.knee - 0.02;
     // body cross-section radius per angle at a height (from the reshaped mesh)
     const radiusAt = (y, ang) => {
       let best = 0.12;
@@ -552,9 +578,10 @@ export class Characters {
     const verts = [], uvs = [], idx = [], sI = [], sW = [];
     const bi = name => body.skeleton.bones.indexOf(bones[name]);
     const pelvis = bi('pelvis'), tl = bi('thigh_l'), tr = bi('thigh_r');
-    const gap = 0.16; // open at the front
+    const gap = 0.16; // coats are open at the front
+    const from = a0 ?? gap / 2, to = a1 ?? Math.PI * 2 - gap / 2;
     const prof = [];
-    for (let s = 0; s <= seg; s++) prof.push(gap / 2 + (Math.PI * 2 - gap) * s / seg);
+    for (let s = 0; s <= seg; s++) prof.push(from + (to - from) * s / seg);
     const ringR = [];
     for (let r = 0; r <= rings; r++) { const y = top + (bot - top) * r / rings; ringR.push(prof.map(a => radiusAt(Math.max(y, lm.knee + 0.1), a))); }
     for (let r = 0; r <= rings; r++) {
@@ -562,7 +589,7 @@ export class Characters {
       const y = top + (bot - top) * t;
       for (let s = 0; s <= seg; s++) {
         const a = prof[s];
-        const rad = Math.max(ringR[r][s], ringR[Math.min(r + 1, rings)][s]) + 0.022 + t * 0.03;
+        const rad = Math.max(ringR[r][s], ringR[Math.min(r + 1, rings)][s]) + extra + t * flare;
         const x = Math.sin(a) * rad, z = Math.cos(a) * rad - 0.03;
         verts.push(x, y, z);
         uvs.push(s / seg, t);
@@ -587,11 +614,11 @@ export class Characters {
     geo.computeVertexNormals();
     // UVs in metres so the shared fabric texture tiles at its natural scale
     const uvA = geo.attributes.uv;
-    for (let i = 0; i < uvA.count; i++) uvA.setXY(i, uvA.getX(i) * 1.7, uvA.getY(i) * (top - bot));
-    const m = this.game.engine.materials.get({ type: 'fabric', tint: outfit.top, seed: 4, side: THREE.DoubleSide, grime: 0, macro: 0.05 });
+    for (let i = 0; i < uvA.count; i++) uvA.setXY(i, uvA.getX(i) * 1.7 * (to - from) / (Math.PI * 2), uvA.getY(i) * (top - bot));
+    const m = this.game.engine.materials.get({ type: 'fabric', tint: color || outfit.top, seed: 4, side: THREE.DoubleSide, grime: 0, macro: 0.05 });
     const tails = new THREE.SkinnedMesh(geo, m);
     tails.bind(body.skeleton, body.bindMatrix);
-    tails.castShadow = true; tails.frustumCulled = false;
+    tails.castShadow = true; tails.frustumCulled = false; tails.userData.ownGeometry = true;
     body.parent.add(tails);
   }
 

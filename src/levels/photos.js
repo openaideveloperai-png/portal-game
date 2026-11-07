@@ -1,7 +1,17 @@
-// Period photographs, painted on demand (later replaced by renders of the people).
+// Period photographs. The game registers a studio that renders them from 3D scenes
+// (see game/photostudio.js); if that fails, a plain painted stand-in is used.
 const cache = new Map();
+let studio = null;
+export function setPhotoStudio(fn) { studio = fn; }
+export function prerenderPhotos(kinds = ['opening', 'halde', 'agnes']) { for (const k of kinds) photoDataURL(k); }
 export function photoDataURL(kind) {
   if (cache.has(kind)) return cache.get(kind);
+  if (studio) {
+    try {
+      const url = studio(kind);
+      if (url) { cache.set(kind, url); return url; }
+    } catch (e) { console.warn('photo studio', kind, e); }
+  }
   const W = 520, H = 380;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
