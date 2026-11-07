@@ -43,10 +43,11 @@ async function compressTextures(doc, { size = 1024, normalSize = size, quality =
   );
 }
 
-async function finish(doc, file, { geometry = true } = {}) {
+async function finish(doc, file, { geometry = true, compress = true } = {}) {
   const steps = [dedup(), prune()];
-  if (geometry) steps.push(quantize({ quantizePosition: 14, quantizeNormal: 10, quantizeTexcoord: 12 }));
-  steps.push(meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+  if (geometry && compress) steps.push(quantize({ quantizePosition: 14, quantizeNormal: 10, quantizeTexcoord: 12 }));
+  // bodies stay uncompressed (float positions) because the game reshapes and dresses them on load
+  if (compress) steps.push(meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
   await doc.transform(...steps);
   const out = path.join(OUT, file);
   await io.write(out, doc);
@@ -58,7 +59,7 @@ async function finish(doc, file, { geometry = true } = {}) {
 for (const [name, file] of [['body_m', 'Superhero_Male_FullBody.gltf'], ['body_f', 'Superhero_Female_FullBody.gltf']]) {
   const doc = await io.read(path.join(BODY_DIR, file));
   await compressTextures(doc, { size: 1024, normalSize: 1024 });
-  await finish(doc, `${name}.glb`);
+  await finish(doc, `${name}.glb`, { compress: false });
 }
 
 // alternate skin albedos, swapped in at runtime by the clothing baker

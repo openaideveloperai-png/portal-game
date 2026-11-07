@@ -168,16 +168,16 @@ M mat(vec2 uv) {
   M m = newM();
   float stip = fbm(uv * 90., vec2(90.), 3);
   float big = fbm(uv * 3., vec2(3.), 4);
-  float patch = smoothstep(0.62, 0.66, fbm(uv * 4. + 7.3, vec2(4.), 3));
+  float patchM = smoothstep(0.62, 0.66, fbm(uv * 4. + 7.3, vec2(4.), 3));
   vec3 col = uTint * (0.95 + 0.07 * big) * (0.985 + 0.03 * stip);
-  col *= mix(vec3(1.), vec3(1.03, 1.02, 0.99), patch);
+  col *= mix(vec3(1.), vec3(1.03, 1.02, 0.99), patchM);
   vec4 v = voronoi(uv * 5., vec2(5.));
   float crackMask = smoothstep(0.55, 0.75, fbm(uv * 2.0 + 3.1, vec2(2.), 3));
   float crack = (1. - smoothstep(0.0, 0.004, v.w)) * crackMask;
   col *= 1. - crack * 0.25;
   m.alb = col;
-  m.h = 0.5 + (stip - 0.5) * 0.25 + patch * 0.08 - crack * 0.25;
-  m.rough = 0.82 - patch * 0.08 + stip * 0.05;
+  m.h = 0.5 + (stip - 0.5) * 0.25 + patchM * 0.08 - crack * 0.25;
+  m.rough = 0.82 - patchM * 0.08 + stip * 0.05;
   return m;
 }`};
 
@@ -575,6 +575,15 @@ M mat(vec2 uv) {
   m.alb = uTint * (0.94 + 0.06 * fib) * mix(vec3(1.), vec3(0.85, 0.72, 0.52), fox * 0.5);
   m.h = 0.5 + fib * 0.1;
   m.rough = 0.92;
+  return m;
+}`};
+
+// Gentle water ripples (normal map source for brine and the reservoir).
+MATS.ripple = { world: 3.0, height: 0.02, body: /* glsl */`
+M mat(vec2 uv) {
+  M m = newM();
+  float n = fbm(uv * 5. + vec2(fbm(uv * 3., vec2(3.), 3) * 0.6), vec2(5.), 5);
+  m.alb = uTint; m.h = n; m.rough = 0.05;
   return m;
 }`};
 
