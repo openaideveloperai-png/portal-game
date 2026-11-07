@@ -67,7 +67,10 @@ export class Story {
     const tok = this.token;
     const next = this.queue.then(() => (tok === this.token ? this.speak(who, text, opts) : null)).catch(() => {});
     this.queue = next;
-    return next;
+    // awaiting a line from a cancelled scene throws, so the scene stops there
+    const p = next.then(() => { if (tok !== this.token) throw new Cancelled(); });
+    p.catch(() => {});
+    return p;
   }
 
   async speak(who, text, { channel = null, pos = null, hold = 0, chime = null } = {}) {

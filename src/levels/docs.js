@@ -40,6 +40,91 @@ export const DOCS = {
       { hand: 'Nobody. It fell off. \u2014 T.B.' },
     ],
   },
+  brineNotice: {
+    id: 'brineNotice', title: 'Notice: brine channels', dept: 'Kalden \u00b7 Works Department',
+    body: [
+      'The ballast channels on Archive Level II carry saturated brine from the reservoir seepage. The brine is used to float heavy stock between stores.',
+      'Brine supports any body lighter than two and a half measures, together with anything resting upon it. It supports nothing heavier. Nothing that sinks in the channels has ever been recovered.',
+      'Staff are not to swim.',
+      { hand: 'Someone did, once. 1958. We don\u2019t say his name in here. \u2014 T.' },
+    ],
+  },
+  twinsNote: {
+    id: 'twinsNote', title: 'Clipboard: twinned ballast', dept: 'Kalden \u00b7 Foundry Records',
+    meta: [['Item', 'Ballast pair, cast 11.IV.1957, pour no. 6'], ['Tuning', 'A, 440']],
+    body: [
+      'Two bodies cast from the same pour and tuned to the same note will hold their measures in common. Draw from one, and the other gives up half. Give to one, and the other is heard to ring.',
+      { hand: 'O.V. wants a third cast from pour 6. There isn\u2019t a third. She knows there isn\u2019t.', red: false },
+    ],
+  },
+  refPersonSpec: {
+    id: 'refPersonSpec', title: 'Specification: the Reference Person', dept: 'Kalden \u00b7 Calibration',
+    body: [
+      'The Reference Person is a full-size figure of standard proportions used to calibrate scales intended for human loads. Seventy kilograms. Four measures. One hundred and seventy-five centimetres.',
+      'The Institute holds a working set of twelve.',
+      { hand: 'And three hundred and twelve that are not a working set. Not on this list. \u2014 T.B.' },
+    ],
+    stamps: [{ text: 'Inventory', right: 40, top: 50, rot: -5, small: true }],
+  },
+  census: {
+    id: 'census', title: 'Census of Halde, 1949 (extract)', org: 'Ministry of Water and Power', dept: 'Kalden Reservoir \u00b7 Resettlement Office',
+    meta: [['Parish', 'Halde, Kalden valley'], ['Persons', '312'], ['Dwellings', '74'], ['Date of flooding', '1 September 1949']],
+    body: [
+      { head: ['Household', 'Persons', 'Resettled to'], table: [['Halder, J.', '6', 'Nedre Kalden'], ['Kessel, B.', '4', 'Nedre Kalden'], ['Novak, P.', '2', 'Ostrava district'], ['Varga, A.', '1', '\u2014'], ['Varga, O.', '1', 'University hostel']] },
+      'Persons who declined resettlement: one (1). Varga, Agnes, 61 kg, widow, of the house by the church.',
+      { hand: 'She said she would wait for the water. \u2014 entered by the Resettlement Officer', red: true },
+    ],
+    stamps: [{ text: 'Closed', right: 50, top: 60, rot: -10 }],
+  },
+  photoHalde: {
+    id: 'photoHalde', kind: 'photo', title: 'Photograph: Halde, summer 1948',
+    get image() { return photoDataURL('halde'); },
+    caption: 'Halde from the south road, summer 1948. The church, the schoolhouse, our house.',
+  },
+  haldeLetter: {
+    id: 'haldeLetter', title: 'Letter to the Ministry, 1952', dept: 'Kalden \u00b7 Office of the Director',
+    meta: [['To', 'The Minister for Water and Power'], ['From', 'Dr. O. Varga, Director'], ['Re', 'Proposed programme of ponderal recovery, Kalden reservoir'], ['Date', '30 January 1952']],
+    body: [
+      'Comrade Minister, I propose that the Institute undertake, at no cost to the Ministry beyond its present budget, the recovery of the submerged settlement of Halde by ponderal means.',
+      'The weight of a building may be drawn from it as from any other body. Drawn weight must be held. I propose that it be held in the mass of the Kalden Dam, which was designed with a reserve of strength the engineers describe as generous.',
+      'When the settlement is sufficiently light it will rise of its own accord. I ask for nothing but time, and that the Ministry not inquire into the progress of the programme until it is complete.',
+    ],
+    sig: 'O. Varga', sigScript: true, sigName: 'Director',
+    stamps: [{ text: 'Approved', right: 40, top: 70, rot: -8 }, { text: 'Not to be filed', right: 260, top: 380, rot: 5, violet: true, small: true }],
+  },
+  ledgerPage: {
+    id: 'ledgerPage', title: 'Page torn from Account 7', dept: 'Kalden \u00b7 Ledger Hall',
+    body: [
+      { head: ['Year', 'Drawn from Halde (t)', 'Deposited (dam)'], table: [['1953', '412', '412'], ['1958', '3 960', '3 960'], ['1963', '9 225', '9 225'], ['1969', '22 870', '22 870'], ['1974', '33 140', '33 140'], ['1979', '41 212', '41 212']] },
+      'Design reserve of the dam (tonnes, crest to foundation): 27 500.',
+      { hand: 'Reserve exceeded 1971. Nobody stopped. \u2014 T.B.', red: true },
+    ],
+  },
+  liftLog: {
+    id: 'liftLog', title: 'Lift log, atrium', dept: 'Kalden \u00b7 Works Department',
+    body: [
+      { head: ['Date', 'Lift', 'Remark'], table: [['3.II.75', 'Upper', 'Ballast removed for the Bell'], ['4.II.75', 'Upper', 'Rode with sandbag, 2 men'], ['9.VI.77', 'Upper', 'Sandbag gone also. For the Bell.'], ['', '', '']] },
+      { hand: 'Everything heavy goes to the Bell eventually. Even the sand. \u2014 T.' },
+    ],
+  },
+  photoAgnes: {
+    id: 'photoAgnes', kind: 'photo', title: 'Photograph: Agnes Varga',
+    get image() { return photoDataURL('agnes'); },
+    caption: 'Mama at the door of the house by the church, 1947.',
+  },
+  agnesLetter: {
+    id: 'agnesLetter', kind: 'note', title: 'A letter from Agnes Varga, August 1949',
+    text: 'Ottilie,\n\nThey came again about the house. I told them the same. A house is not a coat you take off because it rains.\n\nGo to your university. Learn your numbers. Don\u2019t come back to watch, it\u2019s only water.\n\nYou remember what I told you about the cork in the barrel. Everything good comes back up.',
+    sign: 'Mama',
+  },
+  vargaDiary: {
+    id: 'vargaDiary', title: 'Diary page (typed)', dept: 'Private',
+    body: [
+      '14 October 1978. The church tower moved today \u2014 four centimetres off the lake bed, against its chains. Teodor wept. I did not, which he will hold against me.',
+      'The dam engineers sent a letter about the readings. I have filed it with the others.',
+      'It is so nearly light enough. One more house. One more measure. There is always one more measure.',
+    ],
+  },
   photoOpening: {
     id: 'photoOpening', kind: 'photo', title: 'Photograph: the opening, 1951',
     get image() { return photoDataURL('opening'); },

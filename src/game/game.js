@@ -359,7 +359,8 @@ export class Game {
       setCapacity(n) { g.tare.setCapacity(n); },
       async steps(n) { for (let i = 0; i < n; i++) await nextFrame(); },
       // run the simulation for `sec` seconds without rendering (deterministic tests)
-      simulate(sec) { const n = Math.round(sec * 60); for (let i = 0; i < n; i++) { g.fixed(1 / 60); g.level.update(1 / 60); g.story.tick(1 / 60); } return g.level.id; },
+      // yields between steps so story coroutines resume as they would between frames
+      async simulate(sec) { const n = Math.round(sec * 60); for (let i = 0; i < n; i++) { g.fixed(1 / 60); g.level.update(1 / 60); g.story.tick(1 / 60); for (let k = 0; k < 6; k++) await null; } return g.level.id; },
       place(i, x, y, z) { const w = g.level.weighted[i]; w.body.setTranslation({ x, y, z }, true); w.body.setLinvel({ x: 0, y: 0, z: 0 }, true); w.body.setAngvel({ x: 0, y: 0, z: 0 }, true); },
       setW(i, v) { g.level.weighted[i].setWeight(v); },
       named(n) { return g.level.named[n]; },

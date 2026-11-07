@@ -266,7 +266,7 @@ export class Characters {
   async load(onProgress = () => {}) {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
-    const files = ['body_m', 'body_f', 'hair_parted', 'hair_buns', 'hair_long', 'hair_beard', 'hair_buzzed', 'mannequin_m', 'mannequin_f', 'anims_a', 'anims_b'];
+    const files = ['body_m', 'body_f', 'hair_parted', 'hair_buns', 'hair_long', 'hair_beard', 'hair_buzzed', 'mannequin_m', 'mannequin_f', 'mannequin_lod', 'anims_a', 'anims_b'];
     let done = 0;
     await Promise.all(files.map(f => loader.loadAsync(BASE + f + '.glb').then(g => { this.gltf[f] = g; onProgress(++done / (files.length + 4)); })));
     const tl = new THREE.TextureLoader();
@@ -604,10 +604,10 @@ export class Characters {
 
   // ------------------------------------------------------------------ mannequins (static, instanced)
   // Bake a posed mannequin into a static geometry (cached per pose).
-  posedMannequin(female, clipName, time) {
-    const key = `${female}|${clipName}|${time}`;
+  posedMannequin(female, clipName, time, lod = false) {
+    const key = `${female}|${clipName}|${time}|${lod}`;
     if (this.poseCache.has(key)) return this.poseCache.get(key);
-    const src = this.gltf[female ? 'mannequin_f' : 'mannequin_m'];
+    const src = this.gltf[lod ? 'mannequin_lod' : female ? 'mannequin_f' : 'mannequin_m'];
     const root = SkeletonUtils.clone(src.scene);
     const mixer = new THREE.AnimationMixer(root);
     const clip = this.clip(clipName);
@@ -650,12 +650,13 @@ export class Characters {
     phone: ['Idle_TalkingPhone_Loop', 0.5], lantern: ['Idle_Lantern_Loop', 0.4], wave: ['Idle_Rail_Call', 0.9], crouch: ['Crouch_Idle_Loop', 0.4],
   };
 
-  spawnMannequin(L, { pos, yaw = 0, pose = 'stand', female = false, scale = 1, dark = false }) {
+  spawnMannequin(L, { pos, yaw = 0, pose = 'stand', female = false, scale = 1, dark = false, lod = false, collide = true, shadow = true }) {
     if (!L._mq) L._mq = new Map();
     const [clip, t] = Characters.POSES[pose] || Characters.POSES.stand;
-    const key = `${female}|${clip}|${t}|${dark}`;
-    if (!L._mq.has(key)) L._mq.set(key, { female, clip, t, dark, items: [] });
+    const key = `${female}|${clip}|${t}|${dark}|${lod}|${shadow}`;
+    if (!L._mq.has(key)) L._mq.set(key, { female, clip, t, dark, lod, shadow, items: [] });
     L._mq.get(key).items.push({ pos, yaw, scale });
+    if (!collide) return;
     // collider: a capsule-ish box so people don't walk through them
     if (pose !== 'lie') L.phys.fixedBox([pos[0], pos[1] + 0.85 * scale, pos[2]], [0.2 * scale, 0.85 * scale, 0.15 * scale], { info: { kind: 'static', surface: 'wood' } });
     else L.phys.fixedBox([pos[0], pos[1] + 0.12, pos[2]], [0.5, 0.12, 0.5], { info: { kind: 'static', surface: 'wood' } });
@@ -665,7 +666,7 @@ export class Characters {
     if (!L._mq) return;
     const mm = this.mannequinMaterials();
     for (const g of L._mq.values()) {
-      const parts = this.posedMannequin(g.female, g.clip, g.t);
+      const parts = this.posedMannequin(g.female, g.clip, g.t, g.lod);
       for (const p of parts) {
         const mat = p.joints ? mm.joints : (g.dark ? mm.bodyDark : mm.body);
         const im = new THREE.InstancedMesh(p.geometry, mat, g.items.length);
@@ -677,7 +678,7 @@ export class Characters {
           im.setMatrixAt(i, m);
           if (!p.joints) im.setColorAt(i, new THREE.Color().setHSL(0.11, 0.12 + r() * 0.08, 0.75 + r() * 0.12));
         });
-        im.castShadow = true; im.receiveShadow = true;
+        im.castShadow = g.shadow !== false; im.receiveShadow = true;
         im.instanceMatrix.needsUpdate = true;
         if (im.instanceColor) im.instanceColor.needsUpdate = true;
         im.computeBoundingSphere();

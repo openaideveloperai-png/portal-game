@@ -15,8 +15,8 @@
 
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { dedup, prune, resample, textureCompress, quantize, meshopt } from '@gltf-transform/functions';
-import { MeshoptEncoder } from 'meshoptimizer';
+import { dedup, prune, resample, textureCompress, quantize, meshopt, simplify, weld } from '@gltf-transform/functions';
+import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import sharp from 'sharp';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -26,6 +26,7 @@ if (!SRC) { console.error('usage: node tools/build-assets.mjs <source-dir>'); pr
 const OUT = path.resolve('public/assets/models');
 await fs.mkdir(OUT, { recursive: true });
 await MeshoptEncoder.ready;
+await MeshoptSimplifier.ready;
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder });
 
@@ -115,6 +116,14 @@ for (const [name, file] of [['mannequin_m', UAL1], ['mannequin_f', MANNEQUIN_F]]
   const doc = await io.read(file);
   for (const a of doc.getRoot().listAnimations()) disposeAnimation(a);
   await finish(doc, `${name}.glb`);
+}
+
+// a light version of the male mannequin for crowds (the Hall of 312)
+{
+  const doc = await io.read(UAL1);
+  for (const a of doc.getRoot().listAnimations()) disposeAnimation(a);
+  await doc.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ratio: 0.22, error: 0.004 }));
+  await finish(doc, 'mannequin_lod.glb');
 }
 
 // ---------------------------------------------------------------- animations (no mesh)

@@ -306,7 +306,7 @@ export class Wire extends Element {
 
 // ---------------------------------------------------------------- counterweight lift
 export class Lift extends Element {
-  constructor(L, { a, b, size = [2, 2], range = [-4, 4], start = 0, selfA = 0, selfB = 0, pulleyY = null, gain = 0.55, maxV = 1.4, railsA = 'xz', railsB = 'xz', mat = 'paint_ochre', cageA = true, cageB = true, ballast = null, ballastSide = [1, -1], name = null }) {
+  constructor(L, { a, b, size = [2, 2], range = [-4, 4], start = 0, selfA = 0, selfB = 0, pulleyY = null, gain = 0.8, maxV = 1.4, railsA = 'xz', railsB = 'xz', mat = 'paint_ochre', cageA = true, cageB = true, ballast = null, ballastSide = [1, -1], roof = [false, false], name = null }) {
     super(L);
     this.kind = 'lift';
     this.a0 = V(...a); this.b0 = V(...b);
@@ -316,7 +316,7 @@ export class Lift extends Element {
     this.gain = gain; this.maxV = maxV;
     this.initial = start;
     this.pulleyY = pulleyY ?? Math.max(a[1], b[1]) + range[1] + 3.5;
-    this.plats = [this.makePlat(this.a0, railsA, mat, cageA), this.makePlat(this.b0, railsB, mat, cageB)];
+    this.plats = [this.makePlat(this.a0, railsA, mat, cageA, roof[0]), this.makePlat(this.b0, railsB, mat, cageB, roof[1])];
     // overhead beam with two sheaves and the rope
     const mid = this.a0.clone().add(this.b0).multiplyScalar(0.5);
     const span = this.a0.distanceTo(this.b0);
@@ -345,7 +345,7 @@ export class Lift extends Element {
     if (ballast) ballast.forEach((w, i) => { if (w !== null && w !== undefined) this.ballast[i] = new LiftBallast(L, this, i, w, ballastSide[i]); });
     this.sync(true);
   }
-  makePlat(p0, rails, mat, cage) {
+  makePlat(p0, rails, mat, cage, roof = false) {
     const [w, d] = this.size;
     const g = new THREE.Group();
     const floor = new THREE.Mesh(boxGeom([-w / 2, -0.1, -d / 2], [w / 2, 0, d / 2], { bevel: 0.01, grime: false }), this.mats.get('steel_dark'));
@@ -379,15 +379,23 @@ export class Lift extends Element {
       bar.position.y = 2.3; g.add(bar);
       for (const x of [-w / 2, w / 2]) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 2.3, 6), this.mats.get('steel_dark')); s.position.set(x, 1.15, 0); g.add(s); }
     }
+    let roofCol = null;
+    if (roof) {
+      // a grated roof: debt pressing up on it makes the cage lighter
+      const rm = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), this.mats.get('grating'));
+      rm.position.y = 2.32; g.add(rm);
+      roofCol = this.L.phys.attach(R.ColliderDesc.cuboid(w / 2, 0.03, d / 2).setTranslation(0, 2.32, 0), body, { kind: 'lift', surface: 'metal', owner: this }, GROUPS.static);
+    }
     this.L.root.add(g);
-    return { g, body, col, p0 };
+    return { g, body, col, p0, roofCol };
   }
   positions() {
     return [this.a0.y - this.s, this.b0.y + this.s];
   }
   fixedUpdate(dt) {
-    this.loadA = loadOn(this.L, this.plats[0].col).load + this.selfA + (this.ballast[0]?.weight || 0);
-    this.loadB = loadOn(this.L, this.plats[1].col).load + this.selfB + (this.ballast[1]?.weight || 0);
+    const roofP = pl => (pl.roofCol ? loadOn(this.L, pl.roofCol, { dir: -1 }).load : 0);
+    this.loadA = loadOn(this.L, this.plats[0].col).load - roofP(this.plats[0]) + this.selfA + (this.ballast[0]?.weight || 0);
+    this.loadB = loadOn(this.L, this.plats[1].col).load - roofP(this.plats[1]) + this.selfB + (this.ballast[1]?.weight || 0);
     const net = this.loadA - this.loadB;
     let target = clamp(net * this.gain, -this.maxV, this.maxV);
     if (this.locked) target = 0;
@@ -662,6 +670,7 @@ export class Brine extends Element {
     this.snd = null;
   }
   inside(x, z) { return x > this.min[0] && x < this.max[0] && z > this.min[2] && z < this.max[2]; }
+  setLevel(y) { this.surface = y; this.mesh.position.y = y; this.mesh.visible = y > this.min[1] + 0.02; }
   fixedUpdate(dt) {
     const c = [(this.min[0] + this.max[0]) / 2, (this.min[1] + this.surface) / 2 + 0.5, (this.min[2] + this.max[2]) / 2];
     const hh = [(this.max[0] - this.min[0]) / 2, (this.surface - this.min[1]) / 2 + 0.5, (this.max[2] - this.min[2]) / 2];
