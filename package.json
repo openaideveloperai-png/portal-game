@@ -1,0 +1,27 @@
+{
+  "name": "tare",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "TARE — a first-person puzzle game about weight, debt and a drowned village. Runs in the browser.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "assets": "node tools/build-assets.mjs"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.14.0",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.1.1",
+    "@gltf-transform/extensions": "^4.1.1",
+    "@gltf-transform/functions": "^4.1.1",
+    "meshoptimizer": "^0.22.0",
+    "playwright-core": "^1.65.0",
+    "sharp": "^0.33.5",
+    "vite": "^6.0.7"
+  }
+}
