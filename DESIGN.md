@@ -134,6 +134,7 @@ What people read as "AI-made" in games and UI, and what this project does instea
 | Clean, uniform, untouched surfaces | Wear that follows logic: grime where walls meet floors, streaks below ceilings, scuffed lino, chipped enamel back to primer, crazed tiles, a replaced batch of tiles that doesn't quite match |
 | Props without a story | Every prop answers "who worked here and what happened": a cold cup of coffee by a ledger, a coat still on its hook, a calendar stopped on a date |
 | NPCs as statues | Idle loops with breathing and weight shift, look-at, varied idles, characters doing jobs |
+| Stock or generated imagery | The photographs in the documents are rendered from the game's own 3D scenes and developed like 1940s prints: red-blind film response, soft corners, grain, dust |
 
 Sources consulted: Game Developer, "How devs can spot AI-generated 3D models" (Liz Edwards);
 Creative Bloq on spotting AI 3D models; writing on the "AI purple" Tailwind-indigo default and
